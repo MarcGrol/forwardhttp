@@ -19,13 +19,63 @@ import (
 
 type ReceiverService struct{}
 
-func (ps *ReceiverService) HTTPHandlerWithRouter(router *mux.Router) *mux.Router {
-	router.PathPrefix("/").Handler(ps)
+func (rs *ReceiverService) HTTPHandlerWithRouter(router *mux.Router) *mux.Router {
+	router.PathPrefix("/").Handler(rs)
 
 	return router
 }
 
 func (ps *ReceiverService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		ps.explain(w, r)
+	} else if r.Method == "POST" {
+		ps.enqueueToForward(w, r)
+	}
+}
+
+func (ps *ReceiverService) explain(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<html>
+<head>
+	<title>Retryer</title>
+	<meta charset="utf-8"/>
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" 
+		integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" 
+		crossorigin="anonymous">
+</head>
+<body>
+	<main role="main" class="container">
+		<h1>Retrying HTTP forwarder</h1>
+		<p>
+			This HTTP-service will as a persistent and retrying queue.<br/>
+			Upon receipt of a HTTP POST-request, the service will asynchronously forward the received HTTP request to a remote host.<br/>
+			When the remote host does not return a success, the request will be retried untill success or 
+            untill the retry scheme is exhausted.<br/>
+			The remote host is indicated by:
+			<ul>
+				<li>the HTTP query parameeter "HostToForwardTo" or </li>
+				<li>the HTTP-request-header "X-HostToForwardTo"</li>
+			</ul>
+		</p>
+		
+		<p>
+		Example request that demonstrates a POST being forwarded to postman-echo.com<br/><br/>
+
+<pre>
+curl -vvv \
+	--data "This is expected to be sent back as part of response body." \
+	--X POST \
+	"https://retryer-dot-retryer.appspot.com/post?a=b&c=d&HostToForwardTo=https://postman-echo.com"
+</pre>
+		</p>
+
+	</main>
+</body>
+</html>
+`)
+}
+
+func (rs *ReceiverService) enqueueToForward(w http.ResponseWriter, r *http.Request) {
 	c := r.Context()
 
 	task, err := parseRequestIntoTask(r)

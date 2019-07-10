@@ -14,55 +14,58 @@ import (
 type ForwarderService struct{}
 
 func (ps *ForwarderService) HTTPHandlerWithRouter(router *mux.Router) *mux.Router {
-	router.PathPrefix("/_ah/tasks/forward").Handler(ps)
+	subRouter := router.PathPrefix("/_ah/tasks").Subrouter()
+	subRouter.HandleFunc("/forward", ps.onForwardTaskReceived()).Methods("POST")
 
 	return router
 }
 
-func (ps *ForwarderService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//c := r.Context()
-	//
-	//traceUID := r.Header.Get("X-Cloud-Trace-Context")
-	//// Creates a client.
-	//client, err := logging.NewClient(c, os.Getenv("GOOGLE_CLOUD_PROJECT"))
-	//if err != nil {
-	//	log.Printf("Error creating logging client: %v", err)
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//defer client.Close()
-	//
-	//logger := client.Logger(os.Getenv("GAE_SERVICE"))
-	//defer logger.Flush()
-	//logger.Log(logging.Entry{
-	//	Severity: logging.Info,
-	//	Payload:  "Example info",
-	//	Trace:    traceUID,
-	//})
+func (ps *ForwarderService) onForwardTaskReceived() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		//c := r.Context()
+		//
+		//traceUID := r.Header.Get("X-Cloud-Trace-Context")
+		//// Creates a client.
+		//client, err := logging.NewClient(c, os.Getenv("GOOGLE_CLOUD_PROJECT"))
+		//if err != nil {
+		//	log.Printf("Error creating logging client: %v", err)
+		//	w.WriteHeader(http.StatusInternalServerError)
+		//	return
+		//}
+		//defer client.Close()
+		//
+		//logger := client.Logger(os.Getenv("GAE_SERVICE"))
+		//defer logger.Flush()
+		//logger.Log(logging.Entry{
+		//	Severity: logging.Info,
+		//	Payload:  "Example info",
+		//	Trace:    traceUID,
+		//})
 
-	var req httpForwardTask
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		log.Printf("Error parsing task request payload")
-		w.WriteHeader(http.StatusBadRequest)
-		return
+		var req httpForwardTask
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			log.Printf("Error parsing task request payload")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// decode request body
+		respStatus, err := sendOverHttp(req.Method, req.URL, req.Headers, req.Body)
+		if err != nil {
+			log.Printf("Error forwarding %s: %s", req.String(), err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if !isSuccess(respStatus) {
+			log.Printf("Error forwarding %s: http-resp-status=%d", req.String(), respStatus)
+			w.WriteHeader(respStatus)
+			return
+		}
+
+		log.Printf("Successfully forwarded http %s to %s", req.Method, req.URL)
 	}
-
-	// decode request body
-	respStatus, err := sendOverHttp(req.Method, req.URL, req.Headers, req.Body)
-	if err != nil {
-		log.Printf("Error forwarding %s: %s", req.String(), err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if !isSuccess(respStatus) {
-		log.Printf("Error forwarding %s: http-resp-status=%d", req.String(), respStatus)
-		w.WriteHeader(respStatus)
-		return
-	}
-
-	log.Printf("Successfully forwarded http %s to %s", req.Method, req.URL)
 }
 
 func sendOverHttp(method, url string, headers http.Header, requestBody []byte) (int, error) {
