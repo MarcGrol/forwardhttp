@@ -1,4 +1,4 @@
-package main
+package web
 
 import (
 	"context"
@@ -10,44 +10,45 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/MarcGrol/forwardhttp/queue"
 	"github.com/gorilla/mux"
 )
 
-type ReceiverService struct {
-	queue TaskQueue
+type CommandHandlerService struct {
+	Queue queue.TaskQueue
 }
 
-func (rs *ReceiverService) HTTPHandlerWithRouter(router *mux.Router) *mux.Router {
-	router.PathPrefix("/").Handler(rs)
-
-	return router
+func (cs *CommandHandlerService) HTTPHandlerWithRouter(router *mux.Router) {
+	router.PathPrefix("/").Handler(cs)
 }
 
-func (ps *ReceiverService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (cs *CommandHandlerService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" || r.Method == "PUT" {
-		ps.enqueueToForward(w, r)
+		cs.enqueueToForward(w, r)
 		return
 	}
 
-	ps.explain(w, r)
+	cs.explain(w, r)
 }
 
-func (rs *ReceiverService) enqueueToForward(w http.ResponseWriter, r *http.Request) {
+func (cs *CommandHandlerService) enqueueToForward(w http.ResponseWriter, r *http.Request) {
 	c := r.Context()
 
-	task, err := parseRequestIntoTask(r)
+	forwardContext, err := parseRequestIntoForwardContext(r)
 	if err != nil {
 		reportError(w, http.StatusBadRequest, fmt.Errorf("Error parsing request: %s", err))
 		return
 	}
 
-	err = enqueue(c, rs.queue, task)
+	err = enqueue(c, cs.Queue, forwardContext)
 	if err != nil {
-		reportError(w, http.StatusInternalServerError, fmt.Errorf("Error enqueuing request: %s", err))
+		reportError(w, http.StatusInternalServerError, fmt.Errorf("Error enqueuing task: %s", err))
 		return
 	}
 
-	log.Printf("Successfully enqueued task %s", task.String())
+	log.Printf("Successfully enqueued task %s", forwardContext.String())
+
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func reportError(w http.ResponseWriter, httpResponseStatus int, err error) {
@@ -57,7 +58,7 @@ func reportError(w http.ResponseWriter, httpResponseStatus int, err error) {
 	fmt.Fprintf(w, err.Error())
 }
 
-func parseRequestIntoTask(r *http.Request) (*httpForwardTask, error) {
+func parseRequestIntoForwardContext(r *http.Request) (*httpForwardContext, error) {
 	hostToForwardTo, err := extractString(r, "HostToForwardTo", true)
 	if err != nil {
 		return nil, fmt.Errorf("Missing url parameter: %s", err)
@@ -73,12 +74,7 @@ func parseRequestIntoTask(r *http.Request) (*httpForwardTask, error) {
 		return nil, fmt.Errorf("Error reading request body: %s", err)
 	}
 
-	return &httpForwardTask{
-		Method:  r.Method,
-		URL:     forwardURL,
-		Headers: r.Header,
-		Body:    body,
-	}, nil
+	return NewHttpForwardContext(r.Method, forwardURL, r.Header, body), nil
 }
 
 func composeTargetURL(requestURI, hostToForwardTo string) (string, error) {
@@ -128,23 +124,26 @@ func extractString(r *http.Request, fieldName string, mandatory bool) (string, e
 	return value, nil
 }
 
-func enqueue(c context.Context, q TaskQueue, task *httpForwardTask) error {
-	jsonTask, err := json.Marshal(task)
+func enqueue(c context.Context, q queue.TaskQueue, forwardContext *httpForwardContext) error {
+	log.Printf("forwardContext: %+v", forwardContext)
+
+	taskPayload, err := json.Marshal(forwardContext)
 	if err != nil {
-		return fmt.Errorf("Error marshalling task: %s", err)
+		return fmt.Errorf("Error marshalling forwardContext: %s", err)
 	}
-	err = q.Enqueue(c, Task{
-		WebhookURL: "/_ah/tasks/forward",
-		Payload:    jsonTask,
+	err = q.Enqueue(c, queue.Task{
+		UID:            forwardContext.UID,
+		WebhookURLPath: "/_ah/tasks/forward",
+		Payload:        taskPayload,
 	})
 	if err != nil {
-		return fmt.Errorf("Error submitting task to queue: %s", err)
+		return fmt.Errorf("Error submitting task to Queue: %s", err)
 	}
 
 	return nil
 }
 
-func (ps *ReceiverService) explain(w http.ResponseWriter, r *http.Request) {
+func (cs *CommandHandlerService) explain(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, serviceDescription)
 }
@@ -161,7 +160,7 @@ const serviceDescription = `<html>
 	<main role="main" class="container">
 		<h1>Retrying HTTP forwarder</h1>
 		<p>
-			This HTTP-service will as a persistent and retrying queue.<br/>
+			This HTTP-service will as a persistent and retrying Queue.<br/>
 			Upon receipt of a HTTP POST-request, the service will asynchronously forward the received HTTP request to a remote host.<br/>
 			When the remote host does not return a success, the request will be retried untill success or 
             untill the retry scheme is exhausted.<br/>

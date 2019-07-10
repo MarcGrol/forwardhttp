@@ -10,9 +10,10 @@ The remote host is indicated by:
    
 ## Deploy
   
+    cd <project-root>
     gcloud auth login
     gcloud config set project <your-project-name>
-    gcloud app deploy app.yaml queue.yaml --quiet --version <your-version>
+    gcloud app deploy ./main/app.yaml  --quiet --version <your-version>
     
 ## Test
 
@@ -20,11 +21,27 @@ Example to test the interaction:
 
     curl -vvv \
         -X POST \
-        --data "This is expected to be sent back as part of response body." \
+        --data "$(date): This is expected to be sent back as part of response body." \
         "https://<your-project-name>.appspot.com/post?HostToForwardTo=https://postman-echo.com"   
 
     curl -vvv \
         -X POST \
-        --data "This is expected to be sent back as part of response body." \
-        "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com"   
+        --data "$(date): This is expected to be sent back as part of response body." \
+        "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com"  
+        
+## Manage queues
+
+    gcloud tasks queues create default \
+        --max-attempts=3 \
+        --max-concurrent-dispatches=3
+
+    gcloud tasks queues update default
+              --clear-max-attempts 
+              --clear-max-retry-duration
+              --clear-max-doublings 
+              --clear-min-backoff
+              --clear-max-backoff
+              --clear-max-dispatches-per-second
+              --clear-max-concurrent-dispatches
+              --clear-routing-override         
 

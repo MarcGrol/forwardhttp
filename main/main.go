@@ -7,6 +7,10 @@ import (
 	"net/http"
 	"os"
 
+	store2 "github.com/MarcGrol/forwardhttp/store"
+
+	"github.com/MarcGrol/forwardhttp/queue"
+	"github.com/MarcGrol/forwardhttp/web"
 	"github.com/gorilla/mux"
 )
 
@@ -15,16 +19,26 @@ func main() {
 
 	var router = mux.NewRouter()
 
-	q, err := NewQueue(c)
+	queue, qcleanup, err := queue.NewQueue(c)
 	if err != nil {
 		log.Fatalf("Error creating queue: %s", err)
 	}
+	defer qcleanup()
 
-	f := &ForwarderService{}
+	store, scleanup, err := store2.NewStore(c)
+	if err != nil {
+		log.Fatalf("Error creating queue: %s", err)
+	}
+	defer scleanup()
+
+	f := &web.WorkerService{
+		Queue: queue,
+		Store: store,
+	}
 	f.HTTPHandlerWithRouter(router)
 
-	r := &ReceiverService{
-		queue: q,
+	r := &web.CommandHandlerService{
+		Queue: queue,
 	}
 	r.HTTPHandlerWithRouter(router)
 

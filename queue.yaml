@@ -1,4 +1,0 @@
-queue:
-  - name: default
-    rate: 3/s
-    max_concurrent_requests: 5
