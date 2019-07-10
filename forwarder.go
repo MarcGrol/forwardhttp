@@ -57,7 +57,7 @@ func (ps *ForwarderService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !isSuccess(respStatus) {
-		log.Printf("Error forwarding %s: hrrp-resp-status=%d", req.String(), respStatus)
+		log.Printf("Error forwarding %s: http-resp-status=%d", req.String(), respStatus)
 		w.WriteHeader(respStatus)
 		return
 	}

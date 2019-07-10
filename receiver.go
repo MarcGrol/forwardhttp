@@ -30,21 +30,24 @@ func (ps *ReceiverService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	task, err := parseRequestIntoTask(r)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintf(w, "Error parsing request: %s", err)
+		reportError(w, http.StatusBadRequest, fmt.Errorf("Error parsing request: %s", err))
 		return
 	}
 
 	err = enqueue(c, task)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintf(w, "Error enqueuimg request: %s", err)
+		reportError(w, http.StatusInternalServerError, fmt.Errorf("Error enqueuing request: %s", err))
 		return
 	}
 
 	log.Printf("Successfully enqueued task %s", task.String())
+}
+
+func reportError(w http.ResponseWriter, httpResponseStatus int, err error) {
+	log.Printf(err.Error())
+	w.WriteHeader(httpResponseStatus)
+	w.Header().Set("Content-Type", "text/plain")
+	fmt.Fprintf(w, err.Error())
 }
 
 func parseRequestIntoTask(r *http.Request) (*httpForwardTask, error) {
@@ -106,6 +109,9 @@ func extractString(r *http.Request, fieldName string, mandatory bool) (string, e
 		value = pathParams[fieldName]
 	}
 	if value == "" {
+		value = r.Header.Get(fmt.Sprintf("X-%s", fieldName))
+	}
+	if value == "" {
 		if mandatory {
 			return "", fmt.Errorf("Missing parameter '%s'", fieldName)
 		}
@@ -118,12 +124,12 @@ func extractString(r *http.Request, fieldName string, mandatory bool) (string, e
 func enqueue(c context.Context, task *httpForwardTask) error {
 	jsonTask, err := json.Marshal(task)
 	if err != nil {
-		return fmt.Errorf("Error creating task: %s", err)
+		return fmt.Errorf("Error marshalling task: %s", err)
 	}
 
 	cloudTaskClient, err := cloudtasks.NewClient(c)
 	if err != nil {
-		return fmt.Errorf("Error creating cloudtask-sevice: %s", err)
+		return fmt.Errorf("Error creating cloudtask-service: %s", err)
 	}
 
 	projectId := os.Getenv("GOOGLE_CLOUD_PROJECT")
@@ -146,7 +152,8 @@ func enqueue(c context.Context, task *httpForwardTask) error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("Error creating submitting task: %s", err)
+		return fmt.Errorf("Error creating submitting task to queue: %s", err)
 	}
+
 	return nil
 }
