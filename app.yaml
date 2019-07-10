@@ -1,0 +1,13 @@
+runtime: go112
+service: retryer
+
+env_variables:
+  LOCATION_ID: "europe-west1"
+
+handlers:
+  - url: /favicon\.ico
+    static_files: favicon.ico
+    upload: favicon\.ico
+  - url: /.*
+    secure: always
+    script: auto

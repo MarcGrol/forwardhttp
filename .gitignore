@@ -1,0 +1,10 @@
+.cover/
+.DS_Store
+.idea
+.iml
+vendor/*/
+*.log
+emails/preview/*
+*-clientsecret.json
+.secrets
+.examples
