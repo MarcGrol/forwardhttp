@@ -1,7 +1,13 @@
 # Retying http forwarder
 
-Act as a queue: will forward http-request to remote host and retry if remote host did not return success
-
+This HTTP-service will as a persistent and retrying queue.<br/>
+Upon receipt of a HTTP POST-request, the service will asynchronously forward the received HTTP request to a remote host.<br/>
+When the remote host does not return a success, the request will be retried untill success or 
+untill the retry scheme is exhausted.<br/>
+The remote host is indicated by:
+- the HTTP query parameeter "HostToForwardTo" or
+- the HTTP-request-header "X-HostToForwardTo"
+   
 ## deploy
   
     gcloud auth login
@@ -10,7 +16,10 @@ Act as a queue: will forward http-request to remote host and retry if remote hos
     
 ## test
 
-Example:
+Example to test the interaction:
 
-    curl --location --request POST "https://retryer-dot-retryer.appspot.com/post?HostToForwardTo=https://postman-echo.com"   --data "This is expected to be sent back as part of response body."
+    curl -vvv \
+        -X POST \
+        --data "This is expected to be sent back as part of response body." \
+        "https://retryer-dot-retryer.appspot.com/post?HostToForwardTo=https://postman-echo.com"   
 
