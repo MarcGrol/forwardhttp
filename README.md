@@ -1,7 +1,7 @@
 # Retying http forwarder
 
 This HTTP-service will as a persistent and retrying queue.<br/>
-Upon receipt of a HTTP POST-request, the service will asynchronously forward the received HTTP request to a remote host.<br/>
+Upon receipt of a HTTP POST or PUT-request, the service will asynchronously forward the received HTTP request to a remote host.<br/>
 When the remote host does not return a success, the request will be retried untill success or 
 untill the retry scheme is exhausted.<br/>
 The remote host is indicated by:
