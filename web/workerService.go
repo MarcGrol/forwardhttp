@@ -10,10 +10,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/MarcGrol/forwardhttp/store"
-
 	"github.com/MarcGrol/forwardhttp/queue"
-
+	"github.com/MarcGrol/forwardhttp/store"
 	"github.com/gorilla/mux"
 )
 
@@ -22,6 +20,12 @@ type WorkerService struct {
 	Store store.DataStore
 }
 
+func NewWorkerService(queue queue.TaskQueue, store store.DataStore) *WorkerService {
+	return &WorkerService{
+		Queue: queue,
+		Store: store,
+	}
+}
 func (ws *WorkerService) HTTPHandlerWithRouter(router *mux.Router) {
 	subRouter := router.PathPrefix("/_ah/tasks").Subrouter()
 	subRouter.HandleFunc("/forward", ws.onForwardTaskReceived()).Methods("POST")
@@ -42,9 +46,9 @@ func (ws *WorkerService) onForwardTaskReceived() http.HandlerFunc {
 		respPayload, err := sendOverHttp(req.Method, req.URL, req.Headers, req.RequestBody)
 		if err != nil {
 			log.Printf("Error forwarding %s: %s", req.String(), err)
-			lastAttempt := ws.Queue.IsLastAttempt(c, req.UID)
-			if lastAttempt {
+			if ws.Queue.IsLastAttempt(c, req.UID) {
 				log.Printf("***** This was the last attempt ********")
+				// should we call a last resort?
 				storeResult(c, ws.Store, req, respPayload, false)
 			} else {
 				log.Printf("Will try later again")
@@ -55,25 +59,6 @@ func (ws *WorkerService) onForwardTaskReceived() http.HandlerFunc {
 
 		storeResult(c, ws.Store, req, respPayload, true)
 	}
-}
-
-func storeResult(c context.Context, store store.DataStore, req httpForwardContext, respPayload []byte, success bool) error {
-	err := store.Put(c, "TaskStatus", req.UID, &TaskStatus{
-		UID:          req.UID,
-		Timestamp:    time.Now(),
-		Success:      success,
-		Method:       req.Method,
-		URL:          req.URL,
-		RequestBody:  string(req.RequestBody),
-		ResponseBody: string(respPayload),
-	})
-	if err != nil {
-		log.Printf("Error storing task status:%s", err)
-		return fmt.Errorf("Error storing task status:%s", err)
-	}
-
-	log.Printf("Successfully forwarded http %s to %s", req.Method, req.URL)
-	return nil
 }
 
 func sendOverHttp(method, url string, headers http.Header, requestBody []byte) ([]byte, error) {
@@ -106,4 +91,23 @@ func sendOverHttp(method, url string, headers http.Header, requestBody []byte) (
 
 func isSuccess(httpRespStatus int) bool {
 	return httpRespStatus >= http.StatusOK && httpRespStatus < http.StatusMultipleChoices
+}
+
+func storeResult(c context.Context, store store.DataStore, req httpForwardContext, respPayload []byte, success bool) error {
+	err := store.Put(c, "TaskStatus", req.UID, &TaskStatus{
+		UID:          req.UID,
+		Timestamp:    time.Now(),
+		Success:      success,
+		Method:       req.Method,
+		URL:          req.URL,
+		RequestBody:  string(req.RequestBody),
+		ResponseBody: string(respPayload),
+	})
+	if err != nil {
+		log.Printf("Error storing task status: %s", err)
+		return fmt.Errorf("Error storing task status: %s", err)
+	}
+
+	log.Printf("Successfully forwarded http %s to %s", req.Method, req.URL)
+	return nil
 }

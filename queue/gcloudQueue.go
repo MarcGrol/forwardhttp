@@ -74,6 +74,7 @@ func composeFullyQualifiedWebhookURL(webhookUID string) string {
 func (q *GcloudTaskQueue) IsLastAttempt(c context.Context, taskUID string) bool {
 	var maxRetries int32 = -1
 
+	// find characteristics of the queue
 	queue, err := q.client.GetQueue(c, &taskspb.GetQueueRequest{
 		Name: composeQueueName(),
 	})
@@ -87,6 +88,7 @@ func (q *GcloudTaskQueue) IsLastAttempt(c context.Context, taskUID string) bool 
 		maxRetries = queue.RetryConfig.MaxAttempts
 	}
 
+	// find characteristics of the task
 	task, err := q.client.GetTask(c, &taskspb.GetTaskRequest{
 		Name: composeTaskName(taskUID),
 	})
@@ -96,5 +98,6 @@ func (q *GcloudTaskQueue) IsLastAttempt(c context.Context, taskUID string) bool 
 	}
 	log.Printf("task: DispatchCount: %+v", task.DispatchCount)
 
+	// Determine if this is the last attempt
 	return maxRetries == task.DispatchCount
 }

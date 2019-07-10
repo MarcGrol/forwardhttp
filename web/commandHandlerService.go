@@ -18,6 +18,12 @@ type CommandHandlerService struct {
 	Queue queue.TaskQueue
 }
 
+func NewCommandHandlerService(queue queue.TaskQueue) *CommandHandlerService {
+	return &CommandHandlerService{
+		Queue: queue,
+	}
+}
+
 func (cs *CommandHandlerService) HTTPHandlerWithRouter(router *mux.Router) {
 	router.PathPrefix("/").Handler(cs)
 }

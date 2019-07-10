@@ -31,16 +31,8 @@ func main() {
 	}
 	defer scleanup()
 
-	f := &web.WorkerService{
-		Queue: queue,
-		Store: store,
-	}
-	f.HTTPHandlerWithRouter(router)
-
-	r := &web.CommandHandlerService{
-		Queue: queue,
-	}
-	r.HTTPHandlerWithRouter(router)
+	web.NewWorkerService(queue, store).HTTPHandlerWithRouter(router)
+	web.NewCommandHandlerService(queue).HTTPHandlerWithRouter(router)
 
 	http.Handle("/", router)
 
