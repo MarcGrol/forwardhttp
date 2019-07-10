@@ -1,8 +1,9 @@
 runtime: go112
-service: retryer
+service: default
 
 env_variables:
   LOCATION_ID: "europe-west1"
+  QUEUE_NAME: "default"
 
 handlers:
   - url: /favicon\.ico

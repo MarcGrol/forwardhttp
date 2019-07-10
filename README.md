@@ -23,3 +23,8 @@ Example to test the interaction:
         --data "This is expected to be sent back as part of response body." \
         "https://<your-project-name>.appspot.com/post?HostToForwardTo=https://postman-echo.com"   
 
+    curl -vvv \
+        -X POST \
+        --data "This is expected to be sent back as part of response body." \
+        "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com"   
+

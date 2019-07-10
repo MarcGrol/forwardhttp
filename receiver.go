@@ -8,16 +8,14 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
-	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2beta3"
-
-	cloudtasks "cloud.google.com/go/cloudtasks/apiv2beta3"
 	"github.com/gorilla/mux"
 )
 
-type ReceiverService struct{}
+type ReceiverService struct {
+	queue TaskQueue
+}
 
 func (rs *ReceiverService) HTTPHandlerWithRouter(router *mux.Router) *mux.Router {
 	router.PathPrefix("/").Handler(rs)
@@ -43,7 +41,7 @@ func (rs *ReceiverService) enqueueToForward(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err = enqueue(c, task)
+	err = enqueue(c, rs.queue, task)
 	if err != nil {
 		reportError(w, http.StatusInternalServerError, fmt.Errorf("Error enqueuing request: %s", err))
 		return
@@ -130,38 +128,17 @@ func extractString(r *http.Request, fieldName string, mandatory bool) (string, e
 	return value, nil
 }
 
-func enqueue(c context.Context, task *httpForwardTask) error {
+func enqueue(c context.Context, q TaskQueue, task *httpForwardTask) error {
 	jsonTask, err := json.Marshal(task)
 	if err != nil {
 		return fmt.Errorf("Error marshalling task: %s", err)
 	}
-
-	cloudTaskClient, err := cloudtasks.NewClient(c)
-	if err != nil {
-		return fmt.Errorf("Error creating cloudtask-service: %s", err)
-	}
-
-	projectId := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	locationId := os.Getenv("LOCATION_ID")
-	serviceId := os.Getenv("GAE_SERVICE")
-
-	parentId := fmt.Sprintf("projects/%s/locations/%s/queues/default", projectId, locationId)
-	pushURL := fmt.Sprintf("https://%s-dot-%s.appspot.com/_ah/tasks/forward", serviceId, projectId)
-
-	_, err = cloudTaskClient.CreateTask(c, &taskspb.CreateTaskRequest{
-		Parent: parentId,
-		Task: &taskspb.Task{
-			PayloadType: &taskspb.Task_HttpRequest{
-				HttpRequest: &taskspb.HttpRequest{
-					HttpMethod: taskspb.HttpMethod_POST,
-					Url:        pushURL,
-					Body:       jsonTask,
-				},
-			},
-		},
+	err = q.Enqueue(c, Task{
+		WebhookURL: "/_ah/tasks/forward",
+		Payload:    jsonTask,
 	})
 	if err != nil {
-		return fmt.Errorf("Error creating submitting task to queue: %s", err)
+		return fmt.Errorf("Error submitting task to queue: %s", err)
 	}
 
 	return nil
@@ -174,7 +151,7 @@ func (ps *ReceiverService) explain(w http.ResponseWriter, r *http.Request) {
 
 const serviceDescription = `<html>
 <head>
-	<title>Retryer</title>
+	<title>Forwardhttp</title>
 	<meta charset="utf-8"/>
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" 
 		integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" 
@@ -202,7 +179,7 @@ const serviceDescription = `<html>
 curl -vvv \
 	--data "This is expected to be sent back as part of response body." \
 	--X POST \
-	"https://retryer-dot-retryer.appspot.com/post?a=b&c=d&HostToForwardTo=https://postman-echo.com"
+    "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com"   
 </pre>
 		</p>
 

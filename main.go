@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,12 +11,21 @@ import (
 )
 
 func main() {
+	c := context.Background()
+
 	var router = mux.NewRouter()
 
-	f := ForwarderService{}
+	q, err := NewQueue(c)
+	if err != nil {
+		log.Fatalf("Error creating queue: %s", err)
+	}
+
+	f := &ForwarderService{}
 	f.HTTPHandlerWithRouter(router)
 
-	r := ReceiverService{}
+	r := &ReceiverService{
+		queue: q,
+	}
 	r.HTTPHandlerWithRouter(router)
 
 	http.Handle("/", router)
