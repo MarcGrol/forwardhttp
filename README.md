@@ -8,14 +8,20 @@ The remote host is indicated by:
 - the HTTP query parameeter "HostToForwardTo" or
 - the HTTP-request-header "X-HostToForwardTo"
    
+   
 ## Deploy
-  
+
+Use gcloud command-line
+
     cd <project-root>
     gcloud auth login
     gcloud config set project <your-project-name>
     gcloud app deploy ./main/app.yaml  --quiet --version <your-version>
     
 ## Test
+
+https://forwardhttp.appspot.com
+
 
 Example to test the interaction:
 
@@ -29,7 +35,9 @@ Example to test the interaction:
         --data "$(date): This is expected to be sent back as part of response body." \
         "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com"  
         
-## Manage queues
+## Create queue
+
+Use gcloud command-line
 
     gcloud tasks queues create default \
         --max-attempts=3 \
