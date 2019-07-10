@@ -182,7 +182,7 @@ const serviceDescription = `<html>
 
 <pre>
 curl -vvv \
-	--data "This is expected to be sent back as part of response body." \
+	--data "$(date): This is expected to be sent back as part of response body." \
 	--X POST \
     "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com"   
 </pre>
