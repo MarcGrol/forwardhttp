@@ -8,18 +8,18 @@ The remote host is indicated by:
 - the HTTP query parameeter "HostToForwardTo" or
 - the HTTP-request-header "X-HostToForwardTo"
    
-## deploy
+## Deploy
   
     gcloud auth login
-    gcloud config set project retryer
-    gcloud app deploy app.yaml queue.yaml --quiet --version 3
+    gcloud config set project <your-project-name>
+    gcloud app deploy app.yaml queue.yaml --quiet --version <your-version>
     
-## test
+## Test
 
 Example to test the interaction:
 
     curl -vvv \
         -X POST \
         --data "This is expected to be sent back as part of response body." \
-        "https://retryer-dot-retryer.appspot.com/post?HostToForwardTo=https://postman-echo.com"   
+        "https://<your-project-name>.appspot.com/post?HostToForwardTo=https://postman-echo.com"   
 

@@ -22,25 +22,6 @@ func (ps *ForwarderService) HTTPHandlerWithRouter(router *mux.Router) *mux.Route
 
 func (ps *ForwarderService) onForwardTaskReceived() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		//c := r.Context()
-		//
-		//traceUID := r.Header.Get("X-Cloud-Trace-Context")
-		//// Creates a client.
-		//client, err := logging.NewClient(c, os.Getenv("GOOGLE_CLOUD_PROJECT"))
-		//if err != nil {
-		//	log.Printf("Error creating logging client: %v", err)
-		//	w.WriteHeader(http.StatusInternalServerError)
-		//	return
-		//}
-		//defer client.Close()
-		//
-		//logger := client.Logger(os.Getenv("GAE_SERVICE"))
-		//defer logger.Flush()
-		//logger.Log(logging.Entry{
-		//	Severity: logging.Info,
-		//	Payload:  "Example info",
-		//	Trace:    traceUID,
-		//})
 
 		var req httpForwardTask
 		err := json.NewDecoder(r.Body).Decode(&req)
