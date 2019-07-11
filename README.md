@@ -7,7 +7,10 @@ untill the retry scheme is exhausted.<br/>
 The remote host is indicated by:
 - the HTTP query parameeter "HostToForwardTo" or
 - the HTTP-request-header "X-HostToForwardTo"
-   
+
+If required, asynchronous first delivery attmpts can be made. This functionality is triggered by:
+- the HTTP query parameeter "TryFirst" or
+- the HTTP-request-header "X-TryFirst"
    
 ## Deploy
 
@@ -33,7 +36,7 @@ Example to test the interaction:
     curl -vvv \
         -X POST \
         --data "$(date): This is expected to be sent back as part of response body." \
-        "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com"  
+        "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com&TryFirst=true"  
         
 ## Create queue
 

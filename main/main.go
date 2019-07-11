@@ -32,7 +32,7 @@ func main() {
 	defer scleanup()
 
 	web.NewWorkerService(queue, store).HTTPHandlerWithRouter(router)
-	web.NewCommandHandlerService(queue).HTTPHandlerWithRouter(router)
+	web.NewCommandHandlerService(queue, store).HTTPHandlerWithRouter(router)
 
 	http.Handle("/", router)
 

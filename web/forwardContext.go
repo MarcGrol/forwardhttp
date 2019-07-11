@@ -1,10 +1,11 @@
 package web
 
 import (
-	"crypto/sha1"
 	"fmt"
-	"io"
 	"net/http"
+	"strings"
+
+	"github.com/google/uuid"
 )
 
 type httpForwardContext struct {
@@ -32,11 +33,15 @@ func (t httpForwardContext) String() string {
 }
 
 func (t httpForwardContext) hash() string {
-	// Characterize payload based on all relevant fields
-	h := sha1.New()
-	io.WriteString(h, t.Method)
-	io.WriteString(h, t.URL)
-	h.Write(t.RequestBody)
+	// TODO Does not seem to work
+	//// Characterize payload based on all relevant fields
+	//h := sha256.New()
+	//io.WriteString(h, t.Method)
+	//io.WriteString(h, t.URL)
+	//h.Write(t.RequestBody)
+	//
+	//return fmt.Sprintf("%x", h.Sum(nil))
 
-	return fmt.Sprintf("%x", h.Sum(nil))
+	id, _ := uuid.NewUUID()
+	return strings.Replace(id.String(), "-", "", -1)
 }

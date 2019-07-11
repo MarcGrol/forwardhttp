@@ -28,10 +28,12 @@ func NewQueue(c context.Context) (TaskQueue, func(), error) {
 }
 
 func (q *GcloudTaskQueue) Enqueue(c context.Context, task Task) error {
+	taskUID := composeTaskName(task.UID)
+	log.Printf("task-uid: %s", taskUID)
 	_, err := q.client.CreateTask(c, &taskspb.CreateTaskRequest{
 		Parent: composeQueueName(),
 		Task: &taskspb.Task{
-			Name: composeTaskName(task.UID),
+			Name: taskUID,
 			PayloadType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
 					HttpMethod: taskspb.HttpMethod_POST,

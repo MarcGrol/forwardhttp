@@ -8,7 +8,10 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+
+	"github.com/MarcGrol/forwardhttp/store"
 
 	"github.com/MarcGrol/forwardhttp/queue"
 	"github.com/gorilla/mux"
@@ -16,11 +19,13 @@ import (
 
 type CommandHandlerService struct {
 	Queue queue.TaskQueue
+	Store store.DataStore
 }
 
-func NewCommandHandlerService(queue queue.TaskQueue) *CommandHandlerService {
+func NewCommandHandlerService(queue queue.TaskQueue, store store.DataStore) *CommandHandlerService {
 	return &CommandHandlerService{
 		Queue: queue,
+		Store: store,
 	}
 }
 
@@ -40,10 +45,23 @@ func (cs *CommandHandlerService) ServeHTTP(w http.ResponseWriter, r *http.Reques
 func (cs *CommandHandlerService) enqueueToForward(w http.ResponseWriter, r *http.Request) {
 	c := r.Context()
 
-	forwardContext, err := parseRequestIntoForwardContext(r)
+	tryFirst, forwardContext, err := parseRequestIntoForwardContext(r)
 	if err != nil {
 		reportError(w, http.StatusBadRequest, fmt.Errorf("Error parsing request: %s", err))
 		return
+	}
+
+	if tryFirst {
+		// Try synchronous forward first
+		respStatus, respHeaders, respPayload, err := sendOverHttp(forwardContext.Method, forwardContext.URL, forwardContext.Headers, forwardContext.RequestBody)
+		if err == nil || isPermanentError(respStatus) {
+			// keep track
+			storeResult(c, cs.Store, *forwardContext, respStatus, respPayload, err == nil, true)
+
+			// return a response right away
+			writeResponse(w, respStatus, respHeaders, respPayload)
+			return
+		}
 	}
 
 	err = enqueue(c, cs.Queue, forwardContext)
@@ -52,9 +70,18 @@ func (cs *CommandHandlerService) enqueueToForward(w http.ResponseWriter, r *http
 		return
 	}
 
-	log.Printf("Successfully enqueued task %s", forwardContext.String())
-
+	// Indicate we have successfully received but not yet processed
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func writeResponse(w http.ResponseWriter, httpResponseStatus int, headers http.Header, responsePayload []byte) {
+	for k, v := range headers {
+		for _, hv := range v {
+			w.Header().Set(k, hv)
+		}
+	}
+	w.WriteHeader(httpResponseStatus)
+	w.Write(responsePayload)
 }
 
 func reportError(w http.ResponseWriter, httpResponseStatus int, err error) {
@@ -64,29 +91,28 @@ func reportError(w http.ResponseWriter, httpResponseStatus int, err error) {
 	fmt.Fprintf(w, err.Error())
 }
 
-func parseRequestIntoForwardContext(r *http.Request) (*httpForwardContext, error) {
+func parseRequestIntoForwardContext(r *http.Request) (bool, *httpForwardContext, error) {
 	hostToForwardTo, err := extractString(r, "HostToForwardTo", true)
 	if err != nil {
-		return nil, fmt.Errorf("Missing url parameter: %s", err)
+		return false, nil, fmt.Errorf("Missing parameter: %s", err)
 	}
+	tryFirst, _ := extractBool(r, "TryFirst")
 
 	forwardURL, err := composeTargetURL(r.RequestURI, hostToForwardTo)
 	if err != nil {
-		return nil, fmt.Errorf("Error composing target url: %s", err)
+		return tryFirst, nil, fmt.Errorf("Error composing target url: %s", err)
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading request body: %s", err)
+		return tryFirst, nil, fmt.Errorf("Error reading request body: %s", err)
 	}
 
-	return NewHttpForwardContext(r.Method, forwardURL, r.Header, body), nil
+	return tryFirst, NewHttpForwardContext(r.Method, forwardURL, r.Header, body), nil
 }
 
 func composeTargetURL(requestURI, hostToForwardTo string) (string, error) {
 	// strip scheme
-	hostToForwardTo = strings.Replace(hostToForwardTo, "http://", "", 1)
-	hostToForwardTo = strings.Replace(hostToForwardTo, "https://", "", 1)
 
 	url, err := url.Parse(requestURI)
 	if err != nil {
@@ -94,10 +120,25 @@ func composeTargetURL(requestURI, hostToForwardTo string) (string, error) {
 	}
 	queryParams := url.Query()
 	queryParams.Del("HostToForwardTo") // not interesting to remote host
+	queryParams.Del("TryFirst")        // not interesting to remote host
 	url.RawQuery = queryParams.Encode()
-	url.Host = hostToForwardTo
-	url.Scheme = "https"
+	scheme, host := determineSchemeHostname(hostToForwardTo)
+	url.Host = host
+	url.Scheme = scheme
 	return url.String(), nil
+}
+
+func determineSchemeHostname(hostToForwardTo string) (string, string) {
+	scheme := ""
+	if strings.HasPrefix(hostToForwardTo, "http://") {
+		scheme = "http"
+		hostToForwardTo = strings.Replace(hostToForwardTo, "http://", "", 1)
+	} else {
+		scheme = "https"
+		hostToForwardTo = strings.Replace(hostToForwardTo, "https://", "", 1)
+	}
+
+	return scheme, hostToForwardTo
 }
 
 func copyHeaders(dst, src http.Header) {
@@ -130,23 +171,59 @@ func extractString(r *http.Request, fieldName string, mandatory bool) (string, e
 	return value, nil
 }
 
+func extractBool(r *http.Request, fieldName string) (bool, error) {
+	valueAsString := r.URL.Query().Get(fieldName)
+	if valueAsString == "" {
+		valueAsString = r.FormValue(fieldName)
+	}
+	if valueAsString == "" {
+		pathParams := mux.Vars(r)
+		valueAsString = pathParams[fieldName]
+	}
+	if valueAsString == "" {
+		valueAsString = r.Header.Get(fmt.Sprintf("X-%s", fieldName))
+	}
+
+	if valueAsString == "" {
+		return false, nil
+	}
+
+	value, err := strconv.ParseBool(valueAsString)
+	if err != nil {
+		return false, fmt.Errorf("Invalid bool parameter '%s': %s", fieldName, valueAsString)
+	}
+
+	return value, nil
+}
+
 func enqueue(c context.Context, q queue.TaskQueue, forwardContext *httpForwardContext) error {
-	log.Printf("forwardContext: %+v", forwardContext)
 
 	taskPayload, err := json.Marshal(forwardContext)
 	if err != nil {
 		return fmt.Errorf("Error marshalling forwardContext: %s", err)
 	}
+
+	log.Printf("Start enqueuing %s with uid %s: %s", forwardContext.String(), forwardContext.UID, forwardContext.RequestBody)
 	err = q.Enqueue(c, queue.Task{
 		UID:            forwardContext.UID,
 		WebhookURLPath: "/_ah/tasks/forward",
 		Payload:        taskPayload,
 	})
 	if err != nil {
-		return fmt.Errorf("Error submitting task to Queue: %s", err)
+		return fmt.Errorf("Error submitting forwardContext to Queue: %s", err)
 	}
 
+	log.Printf("Successfully enqueued %s", forwardContext.String())
+
 	return nil
+}
+
+func isPermanentError(httpRespStatus int) bool {
+	return !isTemporaryError(httpRespStatus)
+}
+
+func isTemporaryError(httpRespStatus int) bool {
+	return httpRespStatus < http.StatusContinue || httpRespStatus >= http.StatusInternalServerError
 }
 
 func (cs *CommandHandlerService) explain(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +261,7 @@ const serviceDescription = `<html>
 curl -vvv \
 	--data "$(date): This is expected to be sent back as part of response body." \
 	--X POST \
-    "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com"   
+    "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com&TryFirst=true"   
 </pre>
 		</p>
 
