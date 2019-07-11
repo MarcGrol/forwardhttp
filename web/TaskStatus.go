@@ -11,5 +11,7 @@ type TaskStatus struct {
 	RequestBody    string `datastore:",noindex"`
 	ResponseBody   string `datastore:",noindex"`
 	Success        bool
+	NumAttempts    int32
+	MaxAttempts    int32
 	Done           bool
 }

@@ -24,7 +24,7 @@ func NewHttpForwardContext(method, url string, headers http.Header, body []byte)
 		Headers:     headers,
 		RequestBody: body,
 	}
-	fc.UID = fc.hash()
+	fc.UID = fc.composeUID()
 	return fc
 }
 
@@ -32,16 +32,8 @@ func (t httpForwardContext) String() string {
 	return fmt.Sprintf("%s %s", t.Method, t.URL)
 }
 
-func (t httpForwardContext) hash() string {
-	// TODO Does not seem to work
-	//// Characterize payload based on all relevant fields
-	//h := sha256.New()
-	//io.WriteString(h, t.Method)
-	//io.WriteString(h, t.URL)
-	//h.Write(t.RequestBody)
-	//
-	//return fmt.Sprintf("%x", h.Sum(nil))
-
+func (t httpForwardContext) composeUID() string {
+	// TODO should we use a hash? So we can detact duplicate input?
 	id, _ := uuid.NewUUID()
 	return strings.Replace(id.String(), "-", "", -1)
 }

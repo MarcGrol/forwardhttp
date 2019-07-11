@@ -56,7 +56,7 @@ func (cs *CommandHandlerService) enqueueToForward(w http.ResponseWriter, r *http
 		respStatus, respHeaders, respPayload, err := sendOverHttp(forwardContext.Method, forwardContext.URL, forwardContext.Headers, forwardContext.RequestBody)
 		if err == nil || isPermanentError(respStatus) {
 			// keep track
-			storeResult(c, cs.Store, *forwardContext, respStatus, respPayload, err == nil, true)
+			storeResult(c, cs.Store, *forwardContext, respStatus, respPayload, err == nil, 1, 1, true)
 
 			// return a response right away
 			writeResponse(w, respStatus, respHeaders, respPayload)
@@ -77,7 +77,7 @@ func (cs *CommandHandlerService) enqueueToForward(w http.ResponseWriter, r *http
 func writeResponse(w http.ResponseWriter, httpResponseStatus int, headers http.Header, responsePayload []byte) {
 	for k, v := range headers {
 		for _, hv := range v {
-			w.Header().Set(k, hv)
+			w.Header().Add(k, hv)
 		}
 	}
 	w.WriteHeader(httpResponseStatus)

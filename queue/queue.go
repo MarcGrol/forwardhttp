@@ -13,5 +13,5 @@ type Task struct {
 
 type TaskQueue interface {
 	Enqueue(c context.Context, task Task) error
-	IsLastAttempt(c context.Context, taskUID string) bool
+	IsLastAttempt(c context.Context, taskUID string) (int32, int32, bool)
 }

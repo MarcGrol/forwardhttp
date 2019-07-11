@@ -43,7 +43,7 @@ func (ws *WorkerService) onForwardTaskReceived() http.HandlerFunc {
 			return
 		}
 
-		isLastAttempt := ws.Queue.IsLastAttempt(c, req.UID)
+		numAttempts, maxAttempts, isLastAttempt := ws.Queue.IsLastAttempt(c, req.UID)
 		httpRespCode, _, respPayload, err := sendOverHttp(req.Method, req.URL, req.Headers, req.RequestBody)
 		if err != nil {
 			log.Printf("Error forwarding %s: resp-status: %d: %s", req.String(), httpRespCode, err)
@@ -55,14 +55,14 @@ func (ws *WorkerService) onForwardTaskReceived() http.HandlerFunc {
 			}
 
 			// keep track
-			storeResult(c, ws.Store, req, httpRespCode, respPayload, false, isLastAttempt)
+			storeResult(c, ws.Store, req, httpRespCode, respPayload, false, numAttempts, maxAttempts, isLastAttempt)
 
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		// keep track
-		storeResult(c, ws.Store, req, httpRespCode, respPayload, true, isLastAttempt)
+		storeResult(c, ws.Store, req, httpRespCode, respPayload, true, numAttempts, maxAttempts, isLastAttempt)
 	}
 }
 
@@ -99,7 +99,7 @@ func isSuccess(httpRespStatus int) bool {
 }
 
 func storeResult(c context.Context, store store.DataStore, req httpForwardContext, respStatusCode int,
-	respPayload []byte, success, lastAttempt bool) error {
+	respPayload []byte, success bool, numAttempts, maxAttempts int32, lastAttempt bool) error {
 	err := store.Put(c, "TaskStatus", req.UID, &TaskStatus{
 		UID:            req.UID,
 		Timestamp:      time.Now(),
@@ -109,6 +109,8 @@ func storeResult(c context.Context, store store.DataStore, req httpForwardContex
 		ResponseStatus: respStatusCode,
 		ResponseBody:   string(respPayload),
 		Success:        success,
+		NumAttempts:    numAttempts,
+		MaxAttempts:    maxAttempts,
 		Done:           lastAttempt,
 	})
 	if err != nil {
