@@ -161,13 +161,8 @@ func extractBool(r *http.Request, fieldName string) (bool, error) {
 		valueAsString = r.FormValue(fieldName)
 	}
 	if valueAsString == "" {
-		pathParams := mux.Vars(r)
-		valueAsString = pathParams[fieldName]
-	}
-	if valueAsString == "" {
 		valueAsString = r.Header.Get(fmt.Sprintf("X-%s", fieldName))
 	}
-
 	if valueAsString == "" {
 		return false, nil
 	}
