@@ -140,10 +140,17 @@ func warehouseClient(ctrlr *gomock.Controller, err error) warehouse.Warehouser {
 func queueClient(ctrlr *gomock.Controller, isLast bool) queue.TaskQueuer {
 	queue := queue.NewMockTaskQueuer(ctrlr)
 
-	queue.
-		EXPECT().
-		IsLastAttempt(gomock.Any(), gomock.Any()).
-		Return(int32(0), int32(0), isLast)
+	if isLast {
+		queue.
+			EXPECT().
+			IsLastAttempt(gomock.Any(), gomock.Any()).
+			Return(int32(1), int32(1))
+	} else {
+		queue.
+			EXPECT().
+			IsLastAttempt(gomock.Any(), gomock.Any()).
+			Return(int32(1), int32(10))
+	}
 
 	return queue
 }

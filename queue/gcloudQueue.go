@@ -73,7 +73,7 @@ func composeFullyQualifiedWebhookURL(webhookUID string) string {
 	return fmt.Sprintf("https://%s.appspot.com/%s", projectId, webhookUID)
 }
 
-func (q *gcloudTaskQueue) IsLastAttempt(c context.Context, taskUID string) (int32, int32, bool) {
+func (q *gcloudTaskQueue) IsLastAttempt(c context.Context, taskUID string) (int32, int32) {
 	var numRetries int32 = 0
 	var maxRetries int32 = -1
 	// find characteristics of the queue
@@ -82,7 +82,7 @@ func (q *gcloudTaskQueue) IsLastAttempt(c context.Context, taskUID string) (int3
 	})
 	if err != nil {
 		log.Printf("Error creating submitting task to queue: %s", err)
-		return numRetries, maxRetries, false
+		return numRetries, maxRetries
 	}
 
 	if queue.RetryConfig != nil {
@@ -96,10 +96,10 @@ func (q *gcloudTaskQueue) IsLastAttempt(c context.Context, taskUID string) (int3
 	})
 	if err != nil {
 		log.Printf("Error creating submitting task to queue: %s", err)
-		return numRetries, maxRetries, false
+		return numRetries, maxRetries
 	}
 	log.Printf("task: DispatchCount: %+v", task.DispatchCount)
 
 	// Determine if this is the last attempt
-	return numRetries, maxRetries, maxRetries == task.DispatchCount
+	return numRetries, maxRetries
 }

@@ -48,13 +48,12 @@ func (mr *MockTaskQueuerMockRecorder) Enqueue(c, task interface{}) *gomock.Call 
 }
 
 // IsLastAttempt mocks base method
-func (m *MockTaskQueuer) IsLastAttempt(c context.Context, taskUID string) (int32, int32, bool) {
+func (m *MockTaskQueuer) IsLastAttempt(c context.Context, taskUID string) (int32, int32) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsLastAttempt", c, taskUID)
 	ret0, _ := ret[0].(int32)
 	ret1, _ := ret[1].(int32)
-	ret2, _ := ret[2].(bool)
-	return ret0, ret1, ret2
+	return ret0, ret1
 }
 
 // IsLastAttempt indicates an expected call of IsLastAttempt
