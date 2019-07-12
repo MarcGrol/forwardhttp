@@ -9,3 +9,4 @@ emails/preview/*
 .secrets
 .examples
 .gcloudignore
+.coveralls.yml

@@ -1,4 +1,4 @@
-[![BCH compliance](https://bettercodehub.com/edge/badge/MarcGrol/golangAnnotations?branch=master)](https://bettercodehub.com/)
+[![BCH compliance](https://bettercodehub.com/edge/badge/MarcGrol/forwardhttp?branch=master)](https://bettercodehub.com/)
 
 
 # Retying http forwarder
