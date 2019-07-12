@@ -6,7 +6,6 @@ package warehouse
 
 import (
 	context "context"
-	httpclient "github.com/MarcGrol/forwardhttp/httpclient"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -35,15 +34,15 @@ func (m *MockWarehouser) EXPECT() *MockWarehouserMockRecorder {
 }
 
 // Put mocks base method
-func (m *MockWarehouser) Put(c context.Context, req httpclient.Request, resp *httpclient.Response, err error, stats Stats) error {
+func (m *MockWarehouser) Put(c context.Context, summary ForwardSummary) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Put", c, req, resp, err, stats)
+	ret := m.ctrl.Call(m, "Put", c, summary)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Put indicates an expected call of Put
-func (mr *MockWarehouserMockRecorder) Put(c, req, resp, err, stats interface{}) *gomock.Call {
+func (mr *MockWarehouserMockRecorder) Put(c, summary interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockWarehouser)(nil).Put), c, req, resp, err, stats)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockWarehouser)(nil).Put), c, summary)
 }

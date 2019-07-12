@@ -17,6 +17,12 @@ func (s Stats) IsLastAttempt() bool {
 
 //go:generate mockgen -source=api.go -destination=gen_WarehouseClientMock.go -package=warehouse github.com/MarcGrol/forwardhttp/warehouse Warehouser
 
+type ForwardSummary struct {
+	HttpRequest  httpclient.Request
+	HttpResponse *httpclient.Response
+	Error        error
+	Stats        Stats
+}
 type Warehouser interface {
-	Put(c context.Context, req httpclient.Request, resp *httpclient.Response, err error, stats Stats) error
+	Put(c context.Context, summary ForwardSummary) error
 }

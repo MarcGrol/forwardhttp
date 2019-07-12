@@ -29,24 +29,24 @@ type forwardStatsRecord struct {
 	Completed bool
 }
 
-func (w Warehouse) Put(c context.Context, req httpclient.Request, resp *httpclient.Response, err error, stats Stats) error {
+func (w Warehouse) Put(c context.Context, summary ForwardSummary) error {
 	fs := &forwardStatsRecord{
-		Request:  req,
-		Response: resp,
+		Request:  summary.HttpRequest,
+		Response: summary.HttpResponse,
 		ErrorMsg: func() string {
-			if err != nil {
-				return err.Error()
+			if summary.Error != nil {
+				return summary.Error.Error()
 			}
 			return ""
 		}(),
-		Stats:     stats,
-		Completed: stats.RetryCount == stats.MaxRetryCount,
+		Stats:     summary.Stats,
+		Completed: summary.Stats.IsLastAttempt(),
 	}
 
-	putErr := w.store.Put(c, "forwardStatsRecord", req.UID, fs)
+	putErr := w.store.Put(c, "ForwardSummary", summary.HttpRequest.UID, fs)
 	if putErr != nil {
-		log.Printf("Error storing task-status: %s", err)
-		return fmt.Errorf("Error storing task-status: %s", err)
+		log.Printf("Error storing task-status: %s", putErr)
+		return fmt.Errorf("Error storing task-status: %s", putErr)
 	}
 	return nil
 }

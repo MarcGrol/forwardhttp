@@ -131,7 +131,7 @@ func warehouseClient(ctrlr *gomock.Controller, err error) warehouse.Warehouser {
 
 	warehouse.
 		EXPECT().
-		Put(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Put(gomock.Any(), gomock.Any()).
 		Return(err)
 
 	return warehouse

@@ -47,7 +47,12 @@ func (s *forwarderService) RegisterEndPoint(router *mux.Router) *mux.Router {
 
 func (s *forwarderService) Forward(c context.Context, httpReq httpclient.Request) (*httpclient.Response, error) {
 	httpResp, err := s.httpClient.Send(c, httpReq)
-	defer s.warehouse.Put(c, httpReq, httpResp, err, warehouse.Stats{RetryCount: 0, MaxRetryCount: 0})
+	defer s.warehouse.Put(c, warehouse.ForwardSummary{
+		HttpRequest:  httpReq,
+		HttpResponse: httpResp,
+		Error:        err,
+		Stats:        warehouse.Stats{RetryCount: 0, MaxRetryCount: 0},
+	})
 	if err == nil {
 		return nil, err
 	}
@@ -104,7 +109,12 @@ func (s *forwarderService) dequeue() http.HandlerFunc {
 }
 func (s *forwarderService) forward(c context.Context, httpReq httpclient.Request, stats warehouse.Stats) int {
 	httpResp, err := s.httpClient.Send(c, httpReq)
-	defer s.warehouse.Put(c, httpReq, httpResp, err, stats)
+	defer s.warehouse.Put(c, warehouse.ForwardSummary{
+		HttpRequest:  httpReq,
+		HttpResponse: httpResp,
+		Error:        err,
+		Stats:        stats,
+	})
 	if err != nil {
 		log.Printf("Error forwarding %s: %s", httpReq.String(), err)
 		if stats.IsLastAttempt() {

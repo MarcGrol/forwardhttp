@@ -8,4 +8,4 @@ emails/preview/*
 *-clientsecret.json
 .secrets
 .examples
-.cloudignore
+.gcloudignore
