@@ -1,4 +1,5 @@
 [![BCH compliance](https://bettercodehub.com/edge/badge/MarcGrol/forwardhttp?branch=master)](https://bettercodehub.com/)
+[![Build Status](https://travis-ci.org/MarcGrol/forwardhttp.svg?branch=master)](https://travis-ci.org/MarcGrol/forwardhttp)
 
 
 # Retying http forwarder
