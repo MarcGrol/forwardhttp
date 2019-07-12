@@ -66,8 +66,10 @@ func composeTaskName(taskUID string) string {
 
 func composeFullyQualifiedWebhookURL(webhookUID string) string {
 	projectId := os.Getenv("GOOGLE_CLOUD_PROJECT")
-	//serviceId := os.Getenv("GAE_SERVICE")
-	//pushURL := fmt.Sprintf("https://%s-dot-%s.appspot.com/%s", serviceId, projectId, task.WebhookURLPath)
+
+	// We are not publishing to a service within the appengine project.
+	// In this case we would have to use the following project structure
+	// "https://<service-name>-dot-<project-name>.appspot.com/url"
 
 	// we are using the default service
 	return fmt.Sprintf("https://%s.appspot.com/%s", projectId, webhookUID)
@@ -76,30 +78,45 @@ func composeFullyQualifiedWebhookURL(webhookUID string) string {
 func (q *gcloudTaskQueue) IsLastAttempt(c context.Context, taskUID string) (int32, int32) {
 	var numRetries int32 = 0
 	var maxRetries int32 = -1
+
+	queue, err := q.getQueue(c, composeQueueName())
+	if err != nil {
+		log.Printf("%s", err)
+		return numRetries, maxRetries
+	}
+
+	if queue.RetryConfig != nil {
+		maxRetries = queue.RetryConfig.MaxAttempts
+	}
+
+	task, err := q.getTask(c, taskUID)
+	if err != nil {
+		log.Printf("%s", err)
+		return numRetries, maxRetries
+	}
+
+	// Determine if this is the last attempt
+	return task.DispatchCount, maxRetries
+}
+
+func (q *gcloudTaskQueue) getQueue(c context.Context, queueName string) (*taskspb.Queue, error) {
 	// find characteristics of the queue
 	queue, err := q.client.GetQueue(c, &taskspb.GetQueueRequest{
 		Name: composeQueueName(),
 	})
 	if err != nil {
-		log.Printf("Error creating submitting task to queue: %s", err)
-		return numRetries, maxRetries
+		return nil, fmt.Errorf("Error getting queue with name %s: %s", queueName, err)
 	}
+	return queue, nil
+}
 
-	if queue.RetryConfig != nil {
-		log.Printf("queue: RetryConfig.MaxAttempts: %+v", queue.RetryConfig.MaxAttempts)
-		maxRetries = queue.RetryConfig.MaxAttempts
-	}
-
+func (q *gcloudTaskQueue) getTask(c context.Context, taskUID string) (*taskspb.Task, error) {
 	// find characteristics of the task
 	task, err := q.client.GetTask(c, &taskspb.GetTaskRequest{
 		Name: composeTaskName(taskUID),
 	})
 	if err != nil {
-		log.Printf("Error creating submitting task to queue: %s", err)
-		return numRetries, maxRetries
+		return nil, fmt.Errorf("Error getting task with uid %s: %s", taskUID, err)
 	}
-	log.Printf("task: DispatchCount: %+v", task.DispatchCount)
-
-	// Determine if this is the last attempt
-	return numRetries, maxRetries
+	return task, nil
 }
