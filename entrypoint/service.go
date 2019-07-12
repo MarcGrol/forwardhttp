@@ -47,19 +47,13 @@ func (s *webService) forward(w http.ResponseWriter, r *http.Request) {
 	if tryFirst {
 		httpResponse, err := s.forwarder.Forward(c, httpRequest)
 		if err != nil {
-			// return a response right away
-			writeResponse(w, &httpclient.Response{
-				Status: 500,
-				Body:   []byte(err.Error()),
-			})
+			writeResponse(w, &httpclient.Response{Status: 500, Body: []byte(err.Error())})
 			return
 		}
 		if httpResponse.IsPermanentError() {
-			// return a response right away
 			writeResponse(w, httpResponse)
 			return
 		}
-
 		// continue async
 	}
 
@@ -73,6 +67,9 @@ func (s *webService) forward(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
+func firstAttempt() {
+
+}
 func writeResponse(w http.ResponseWriter, resp *httpclient.Response) {
 	for k, v := range resp.Headers {
 		for _, hv := range v {

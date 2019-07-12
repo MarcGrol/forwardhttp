@@ -36,14 +36,10 @@ func main() {
 	defer scleanup()
 
 	httpClient := httpclient.NewClient()
-
 	warehouse := warehouse.New(store)
-
 	lastdeliverer := lastdelivery.NewLastDelivery()
-
 	forwarder := forwarder.NewService(queue, httpClient, warehouse, lastdeliverer)
 	forwarder.RegisterEndPoint(router)
-
 	entrypoint := entrypoint.NewWebService(forwarder)
 	entrypoint.RegisterEndpoint(router)
 

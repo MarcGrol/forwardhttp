@@ -103,7 +103,6 @@ func (s *forwarderService) dequeue() http.HandlerFunc {
 	}
 }
 func (s *forwarderService) forward(c context.Context, httpReq httpclient.Request, stats warehouse.Stats) int {
-	// do forward over http
 	httpResp, err := s.httpClient.Send(c, httpReq)
 	defer s.warehouse.Put(c, httpReq, httpResp, err, stats)
 	if err != nil {
@@ -122,7 +121,6 @@ func (s *forwarderService) forward(c context.Context, httpReq httpclient.Request
 		return httpResp.Status
 	}
 
-	log.Printf("Successfully forwarded %s:%s", httpReq.String(), httpResp.String())
 	s.lastDelivery.OnLastDelivery(c, httpReq, httpResp, nil)
 
 	return http.StatusOK
