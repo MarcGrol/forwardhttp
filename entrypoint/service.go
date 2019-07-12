@@ -149,7 +149,7 @@ func extractMandatoryStringParameter(r *http.Request, fieldName string) (string,
 		value = r.Header.Get(fmt.Sprintf("X-%s", fieldName))
 	}
 	if value == "" {
-		return "", nil
+		return "", fmt.Errorf("Missing mandatory parameter '%s'", fieldName)
 	}
 
 	return value, nil

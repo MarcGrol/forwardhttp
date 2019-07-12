@@ -30,7 +30,7 @@ func TestAll(t *testing.T) {
 			forwarder:               nil,
 			request:                 httpRequest(t, "POST", "/doit?TryFirst=true", "request body"),
 			expectedResponseStatus:  400,
-			expectedResponsePayload: "Error parsing request: Missing parameter: Missing parameter 'HostToForwardTo'",
+			expectedResponsePayload: "Error parsing request: Missing parameter: Missing mandatory parameter 'HostToForwardTo'",
 		},
 		{
 			name:                    "Synchronous: success",
@@ -87,7 +87,7 @@ func TestAll(t *testing.T) {
 
 			// then
 			assert.Equal(t, tc.expectedResponseStatus, httpResp.Code)
-			assert.Contains(t, tc.expectedResponsePayload, httpResp.Body.String())
+			assert.Equal(t, tc.expectedResponsePayload, httpResp.Body.String())
 		})
 	}
 }

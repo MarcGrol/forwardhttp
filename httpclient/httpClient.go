@@ -70,7 +70,7 @@ func (_ client) Send(c context.Context, req Request) (*Response, error) {
 
 	respPayload, err := ioutil.ReadAll(httpResp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading response: %s", req.String(), err)
+		return nil, fmt.Errorf("Error reading response %s: %s", req.String(), err)
 	}
 
 	return &Response{
