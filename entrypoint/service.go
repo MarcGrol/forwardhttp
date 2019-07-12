@@ -67,9 +67,6 @@ func (s *webService) forward(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func firstAttempt() {
-
-}
 func writeResponse(w http.ResponseWriter, resp *httpclient.Response) {
 	for k, v := range resp.Headers {
 		for _, hv := range v {
@@ -92,7 +89,7 @@ func parseRequest(r *http.Request) (bool, httpclient.Request, error) {
 
 	req := httpclient.Request{}
 
-	hostToForwardTo, err := extractString(r, "HostToForwardTo", true)
+	hostToForwardTo, err := extractMandatoryStringParameter(r, "HostToForwardTo")
 	if err != nil {
 		return false, req, fmt.Errorf("Missing parameter: %s", err)
 	}
@@ -142,22 +139,16 @@ func determineSchemeHostname(hostToForwardTo string) (string, string) {
 	return scheme, hostToForwardTo
 }
 
-func extractString(r *http.Request, fieldName string, mandatory bool) (string, error) {
+func extractMandatoryStringParameter(r *http.Request, fieldName string) (string, error) {
 	value := r.URL.Query().Get(fieldName)
 	if value == "" {
 		value = r.FormValue(fieldName)
 	}
-	if value == "" {
-		pathParams := mux.Vars(r)
-		value = pathParams[fieldName]
-	}
+
 	if value == "" {
 		value = r.Header.Get(fmt.Sprintf("X-%s", fieldName))
 	}
 	if value == "" {
-		if mandatory {
-			return "", fmt.Errorf("Missing parameter '%s'", fieldName)
-		}
 		return "", nil
 	}
 

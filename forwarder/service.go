@@ -17,7 +17,7 @@ import (
 
 const (
 	taskEndpointBaseURL     = "/_ah/tasks"
-	taskEndpointFORWARDPath = "/forward"
+	taskEndpointFORWARDPath = "/doSend"
 
 	taskEndpointURL = taskEndpointBaseURL + taskEndpointFORWARDPath
 )
@@ -103,18 +103,13 @@ func (s *forwarderService) dequeue() http.HandlerFunc {
 		numAttempts, maxAttempts := s.queue.IsLastAttempt(c, httpReq.UID)
 		stats := warehouse.Stats{RetryCount: numAttempts, MaxRetryCount: maxAttempts}
 
-		// forward
-		w.WriteHeader(s.forward(c, httpReq, stats))
+		// doSend
+		w.WriteHeader(s.doSend(c, httpReq, stats))
 	}
 }
-func (s *forwarderService) forward(c context.Context, httpReq httpclient.Request, stats warehouse.Stats) int {
+func (s *forwarderService) doSend(c context.Context, httpReq httpclient.Request, stats warehouse.Stats) int {
 	httpResp, err := s.httpClient.Send(c, httpReq)
-	defer s.warehouse.Put(c, warehouse.ForwardSummary{
-		HttpRequest:  httpReq,
-		HttpResponse: httpResp,
-		Error:        err,
-		Stats:        stats,
-	})
+	defer s.warehouse.Put(c, warehouse.ForwardSummary{HttpRequest: httpReq, HttpResponse: httpResp, Error: err, Stats: stats})
 	if err != nil {
 		log.Printf("Error forwarding %s: %s", httpReq.String(), err)
 		if stats.IsLastAttempt() {
