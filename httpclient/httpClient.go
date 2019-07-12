@@ -7,7 +7,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 )
+
+const httpClientTimeout = 20 * time.Second
 
 type client struct {
 }
@@ -24,7 +27,9 @@ func (_ client) Send(c context.Context, req Request) (*Response, error) {
 	copyHeaders(httpReq.Header, req.Headers)
 
 	log.Printf("HTTP request: %s %s", req.Method, req.URL)
-	httpClient := &http.Client{}
+	httpClient := &http.Client{
+		Timeout: httpClientTimeout,
+	}
 	httpResp, err := httpClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("Error sending %s: %s", req.String(), err)
