@@ -52,5 +52,5 @@ Example to test the interaction:
 
     curl -vvv \
         --request POST \
-          --data "This is expected to be sent back as part of response body." \
-        "https://postman-echo.com/post?a=b" 
+        --data "This is expected to be sent back as part of response body." \
+        "https://forwardhttp.appspot.com/post?HostToForwardTo=postman-echo.com&TryFirst=false"   

@@ -26,7 +26,7 @@ func (r *Request) SetUID() {
 }
 
 func (r Request) String() string {
-	return fmt.Sprintf("HTTP request %s %s: %s", r.Method, r.URL, r.UID)
+	return fmt.Sprintf("HTTP %s request %s: %s", r.Method, r.URL, r.UID)
 }
 
 type Response struct {
@@ -36,7 +36,7 @@ type Response struct {
 }
 
 func (r Response) String() string {
-	return fmt.Sprintf("HTTP response %s", r.Status)
+	return fmt.Sprintf("HTTP response %d", r.Status)
 }
 
 func (r Response) IsError() bool {

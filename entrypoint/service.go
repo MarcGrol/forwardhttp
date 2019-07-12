@@ -87,20 +87,21 @@ func reportError(w http.ResponseWriter, httpResponseStatus int, err error) {
 func parseRequest(r *http.Request) (bool, httpclient.Request, error) {
 	tryFirst := extractBool(r, "TryFirst")
 
-	req := httpclient.Request{}
+	req := httpclient.Request{
+		Method:  r.Method,
+		Headers: r.Header,
+	}
+	req.SetUID()
 
 	hostToForwardTo, err := extractMandatoryStringParameter(r, "HostToForwardTo")
 	if err != nil {
 		return false, req, fmt.Errorf("Missing parameter: %s", err)
 	}
 
-	forwardURL, err := composeTargetURL(r.RequestURI, hostToForwardTo)
+	req.URL, err = composeTargetURL(r.RequestURI, hostToForwardTo)
 	if err != nil {
 		return tryFirst, req, fmt.Errorf("Error composing target url: %s", err)
 	}
-	req.URL = forwardURL
-	req.Headers = r.Header
-	req.SetUID()
 
 	req.Body, err = ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -208,10 +209,10 @@ const serviceDescription = `<html>
 		Example request that demonstrates a POST being forwarded to postman-echo.com<br/><br/>
 
 <pre>
-curl -vvv \
-	--data "$(date): This is expected to be sent back as part of response body." \
-	--X POST \
-    "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com&TryFirst=true"   
+   curl -vvv \
+        --request POST \
+        --data "This is expected to be sent back as part of response body." \
+        "https://forwardhttp.appspot.com/post?HostToForwardTo=postman-echo.com&TryFirst=false"    
 </pre>
 		</p>
 

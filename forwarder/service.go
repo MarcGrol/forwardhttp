@@ -49,12 +49,12 @@ func (s *forwarderService) Forward(c context.Context, httpReq httpclient.Request
 	httpResp, err := s.httpClient.Send(c, httpReq)
 	defer s.warehouse.Put(c, warehouse.ForwardSummary{HttpRequest: httpReq, HttpResponse: httpResp, Error: err, Stats: warehouse.Stats{RetryCount: 0, MaxRetryCount: 0}})
 	if err != nil {
-		log.Printf("Forwarding error %+v: %s", httpReq, err)
+		log.Printf("Forwarding error %s: %s", httpReq, err)
 		return nil, err
 	}
 	if httpResp.IsError() {
-		log.Printf("Forwarding error  %s: %s", httpReq, httpResp)
-		// error returned
+		log.Printf("Forwarding error %s: %s", httpReq, httpResp)
+		return httpResp, err
 	}
 
 	log.Printf("Forwarded successfully")
@@ -82,7 +82,7 @@ func (s *forwarderService) enqueue(c context.Context, httpRequest httpclient.Req
 		return fmt.Errorf("Error submitting forwardContext to queue: %s", err)
 	}
 
-	log.Printf("Successfully enqueued %s", httpRequest.String())
+	log.Printf("Successfully enqueued for later forwarding: %s", httpRequest)
 
 	return nil
 }

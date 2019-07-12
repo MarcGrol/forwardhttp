@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
@@ -22,6 +23,7 @@ func (_ client) Send(c context.Context, req Request) (*Response, error) {
 	}
 	copyHeaders(httpReq.Header, req.Headers)
 
+	log.Printf("HTTP request: %s %s", req.Method, req.URL)
 	httpClient := &http.Client{}
 	httpResp, err := httpClient.Do(httpReq)
 	if err != nil {
@@ -33,6 +35,7 @@ func (_ client) Send(c context.Context, req Request) (*Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error reading response %s: %s", req.String(), err)
 	}
+	log.Printf("HTTP resp: %d", httpResp.StatusCode)
 
 	return &Response{
 		Status:  httpResp.StatusCode,
