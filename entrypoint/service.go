@@ -100,6 +100,7 @@ func parseRequest(r *http.Request) (bool, httpclient.Request, error) {
 	}
 	req.URL = forwardURL
 	req.Headers = r.Header
+	req.SetUID()
 
 	req.Body, err = ioutil.ReadAll(r.Body)
 	if err != nil {

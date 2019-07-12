@@ -51,6 +51,6 @@ https://forwardhttp.appspot.com
 Example to test the interaction:
 
     curl -vvv \
-        -X POST \
-        --data "$(date): This is expected to be sent back as part of response body." \
-        "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com&TryFirst=true"  
+        --request POST \
+          --data "This is expected to be sent back as part of response body." \
+        "https://postman-echo.com/post?a=b" 

@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
+
+	"github.com/google/uuid"
 )
 
 //go:generate mockgen -source=api.go -destination=gen_HttpClientMock.go -package=httpclient github.com/MarcGrol/forwardhttp/httpclient HTTPSender
@@ -16,8 +19,14 @@ type Request struct {
 	Body    []byte      `datastore:",noindex"`
 }
 
+func (r *Request) SetUID() {
+	// TODO should we use a hash? So we can detact duplicate input?
+	id, _ := uuid.NewUUID()
+	r.UID = strings.Replace(id.String(), "-", "", -1)
+}
+
 func (r Request) String() string {
-	return fmt.Sprintf("HTTP request %s %s", r.Method, r.URL)
+	return fmt.Sprintf("HTTP request %s %s: %s", r.Method, r.URL, r.UID)
 }
 
 type Response struct {
@@ -27,7 +36,7 @@ type Response struct {
 }
 
 func (r Response) String() string {
-	return fmt.Sprintf("HTTP response %d", r.Status)
+	return fmt.Sprintf("HTTP response %s", r.Status)
 }
 
 func (r Response) IsError() bool {

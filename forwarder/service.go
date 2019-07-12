@@ -47,17 +47,17 @@ func (s *forwarderService) RegisterEndPoint(router *mux.Router) *mux.Router {
 
 func (s *forwarderService) Forward(c context.Context, httpReq httpclient.Request) (*httpclient.Response, error) {
 	httpResp, err := s.httpClient.Send(c, httpReq)
-	defer s.warehouse.Put(c, warehouse.ForwardSummary{
-		HttpRequest:  httpReq,
-		HttpResponse: httpResp,
-		Error:        err,
-		Stats:        warehouse.Stats{RetryCount: 0, MaxRetryCount: 0},
-	})
+	defer s.warehouse.Put(c, warehouse.ForwardSummary{HttpRequest: httpReq, HttpResponse: httpResp, Error: err, Stats: warehouse.Stats{RetryCount: 0, MaxRetryCount: 0}})
 	if err != nil {
-		log.Printf("Forwarding error %s: %s", httpReq, err)
+		log.Printf("Forwarding error %+v: %s", httpReq, err)
 		return nil, err
 	}
-	log.Printf("Forwarded successfully: %s", httpResp)
+	if httpResp.IsError() {
+		log.Printf("Forwarding error  %s: %s", httpReq, httpResp)
+		// error returned
+	}
+
+	log.Printf("Forwarded successfully")
 
 	return httpResp, nil
 }
