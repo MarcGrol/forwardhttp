@@ -7,10 +7,14 @@ import (
 	"net/http"
 	"os"
 
-	store2 "github.com/MarcGrol/forwardhttp/store"
+	"github.com/MarcGrol/forwardhttp/lastdelivery"
 
+	"github.com/MarcGrol/forwardhttp/entrypoint"
+	"github.com/MarcGrol/forwardhttp/forwarder"
+	"github.com/MarcGrol/forwardhttp/httpclient"
 	"github.com/MarcGrol/forwardhttp/queue"
-	"github.com/MarcGrol/forwardhttp/web"
+	store2 "github.com/MarcGrol/forwardhttp/store"
+	"github.com/MarcGrol/forwardhttp/warehouse"
 	"github.com/gorilla/mux"
 )
 
@@ -31,8 +35,17 @@ func main() {
 	}
 	defer scleanup()
 
-	web.NewWorkerService(queue, store).HTTPHandlerWithRouter(router)
-	web.NewCommandHandlerService(queue, store).HTTPHandlerWithRouter(router)
+	httpClient := httpclient.NewClient()
+
+	warehouse := warehouse.New(store)
+
+	lastdeliverer := lastdelivery.NewLastDelivery()
+
+	forwarder := forwarder.NewService(queue, httpClient, warehouse, lastdeliverer)
+	forwarder.RegisterEndPoint(router)
+
+	entrypoint := entrypoint.NewWebService(forwarder)
+	entrypoint.RegisterEndpoint(router)
 
 	http.Handle("/", router)
 

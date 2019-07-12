@@ -2,6 +2,6 @@ package store
 
 import "context"
 
-type DataStore interface {
+type DataStorer interface {
 	Put(c context.Context, kind, uid string, value interface{}) error
 }

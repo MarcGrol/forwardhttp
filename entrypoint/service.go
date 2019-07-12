@@ -1,8 +1,6 @@
-package web
+package entrypoint
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,60 +9,61 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MarcGrol/forwardhttp/store"
-
-	"github.com/MarcGrol/forwardhttp/queue"
+	"github.com/MarcGrol/forwardhttp/forwarder"
+	"github.com/MarcGrol/forwardhttp/httpclient"
 	"github.com/gorilla/mux"
 )
 
-type CommandHandlerService struct {
-	Queue queue.TaskQueue
-	Store store.DataStore
-}
-
-func NewCommandHandlerService(queue queue.TaskQueue, store store.DataStore) *CommandHandlerService {
-	return &CommandHandlerService{
-		Queue: queue,
-		Store: store,
+func NewWebService(forwarder forwarder.Forwarder) *webService {
+	s := &webService{
+		forwarder: forwarder,
 	}
+	return s
 }
 
-func (cs *CommandHandlerService) HTTPHandlerWithRouter(router *mux.Router) {
-	router.PathPrefix("/").Handler(cs)
+func (s *webService) RegisterEndpoint(router *mux.Router) *mux.Router {
+	router.PathPrefix("/").Handler(s)
+	return router
 }
 
-func (cs *CommandHandlerService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *webService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" || r.Method == "PUT" {
-		cs.enqueueToForward(w, r)
+		s.forward(w, r)
 		return
 	}
 
-	cs.explain(w, r)
+	s.explain(w, r)
 }
 
-func (cs *CommandHandlerService) enqueueToForward(w http.ResponseWriter, r *http.Request) {
+func (s *webService) forward(w http.ResponseWriter, r *http.Request) {
 	c := r.Context()
 
-	tryFirst, forwardContext, err := parseRequestIntoForwardContext(r)
+	tryFirst, httpRequest, err := parseRequest(r)
 	if err != nil {
 		reportError(w, http.StatusBadRequest, fmt.Errorf("Error parsing request: %s", err))
 		return
 	}
 
 	if tryFirst {
-		// Try synchronous forward first
-		respStatus, respHeaders, respPayload, err := sendOverHttp(forwardContext.Method, forwardContext.URL, forwardContext.Headers, forwardContext.RequestBody)
-		if err == nil || isPermanentError(respStatus) {
-			// keep track
-			storeResult(c, cs.Store, *forwardContext, respStatus, respPayload, err == nil, 1, 1, true)
-
+		httpResponse, err := s.forwarder.Forward(c, httpRequest)
+		if err != nil {
 			// return a response right away
-			writeResponse(w, respStatus, respHeaders, respPayload)
+			writeResponse(w, &httpclient.Response{
+				Status: 500,
+				Body:   []byte(err.Error()),
+			})
 			return
 		}
+		if httpResponse.IsPermanentError() {
+			// return a response right away
+			writeResponse(w, httpResponse)
+			return
+		}
+
+		// continue async
 	}
 
-	err = enqueue(c, cs.Queue, forwardContext)
+	err = s.forwarder.ForwardAsync(c, httpRequest)
 	if err != nil {
 		reportError(w, http.StatusInternalServerError, fmt.Errorf("Error enqueuing task: %s", err))
 		return
@@ -74,14 +73,14 @@ func (cs *CommandHandlerService) enqueueToForward(w http.ResponseWriter, r *http
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func writeResponse(w http.ResponseWriter, httpResponseStatus int, headers http.Header, responsePayload []byte) {
-	for k, v := range headers {
+func writeResponse(w http.ResponseWriter, resp *httpclient.Response) {
+	for k, v := range resp.Headers {
 		for _, hv := range v {
 			w.Header().Add(k, hv)
 		}
 	}
-	w.WriteHeader(httpResponseStatus)
-	w.Write(responsePayload)
+	w.WriteHeader(resp.Status)
+	w.Write(resp.Body)
 }
 
 func reportError(w http.ResponseWriter, httpResponseStatus int, err error) {
@@ -91,24 +90,29 @@ func reportError(w http.ResponseWriter, httpResponseStatus int, err error) {
 	fmt.Fprintf(w, err.Error())
 }
 
-func parseRequestIntoForwardContext(r *http.Request) (bool, *httpForwardContext, error) {
+func parseRequest(r *http.Request) (bool, httpclient.Request, error) {
+	tryFirst, _ := extractBool(r, "TryFirst")
+
+	req := httpclient.Request{}
+
 	hostToForwardTo, err := extractString(r, "HostToForwardTo", true)
 	if err != nil {
-		return false, nil, fmt.Errorf("Missing parameter: %s", err)
+		return false, req, fmt.Errorf("Missing parameter: %s", err)
 	}
-	tryFirst, _ := extractBool(r, "TryFirst")
 
 	forwardURL, err := composeTargetURL(r.RequestURI, hostToForwardTo)
 	if err != nil {
-		return tryFirst, nil, fmt.Errorf("Error composing target url: %s", err)
+		return tryFirst, req, fmt.Errorf("Error composing target url: %s", err)
 	}
+	req.URL = forwardURL
+	req.Headers = r.Header
 
-	body, err := ioutil.ReadAll(r.Body)
+	req.Body, err = ioutil.ReadAll(r.Body)
 	if err != nil {
-		return tryFirst, nil, fmt.Errorf("Error reading request body: %s", err)
+		return tryFirst, req, fmt.Errorf("Error reading request body: %s", err)
 	}
 
-	return tryFirst, NewHttpForwardContext(r.Method, forwardURL, r.Header, body), nil
+	return tryFirst, req, nil
 }
 
 func composeTargetURL(requestURI, hostToForwardTo string) (string, error) {
@@ -139,14 +143,6 @@ func determineSchemeHostname(hostToForwardTo string) (string, string) {
 	}
 
 	return scheme, hostToForwardTo
-}
-
-func copyHeaders(dst, src http.Header) {
-	for k, vv := range src {
-		for _, v := range vv {
-			dst.Add(k, v)
-		}
-	}
 }
 
 func extractString(r *http.Request, fieldName string, mandatory bool) (string, error) {
@@ -196,37 +192,7 @@ func extractBool(r *http.Request, fieldName string) (bool, error) {
 	return value, nil
 }
 
-func enqueue(c context.Context, q queue.TaskQueue, forwardContext *httpForwardContext) error {
-
-	taskPayload, err := json.Marshal(forwardContext)
-	if err != nil {
-		return fmt.Errorf("Error marshalling forwardContext: %s", err)
-	}
-
-	log.Printf("Start enqueuing %s with uid %s: %s", forwardContext.String(), forwardContext.UID, forwardContext.RequestBody)
-	err = q.Enqueue(c, queue.Task{
-		UID:            forwardContext.UID,
-		WebhookURLPath: "/_ah/tasks/forward",
-		Payload:        taskPayload,
-	})
-	if err != nil {
-		return fmt.Errorf("Error submitting forwardContext to Queue: %s", err)
-	}
-
-	log.Printf("Successfully enqueued %s", forwardContext.String())
-
-	return nil
-}
-
-func isPermanentError(httpRespStatus int) bool {
-	return !isTemporaryError(httpRespStatus)
-}
-
-func isTemporaryError(httpRespStatus int) bool {
-	return httpRespStatus < http.StatusContinue || httpRespStatus >= http.StatusInternalServerError
-}
-
-func (cs *CommandHandlerService) explain(w http.ResponseWriter, r *http.Request) {
+func (s *webService) explain(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, serviceDescription)
 }
@@ -243,10 +209,10 @@ const serviceDescription = `<html>
 	<main role="main" class="container">
 		<h1>Retrying HTTP forwarder</h1>
 		<p>
-			This HTTP-service will as a persistent and retrying Queue.<br/>
-			Upon receipt of a HTTP POST or PUT-request, the service will asynchronously forward the received HTTP request to a remote host.<br/>
+			This web-service will act as a persistent and retrying queue.<br/>
+			Upon receipt of a POST or PUT-request, the service will asynchronously forward the received HTTP request to a remote host.<br/>
 			When the remote host does not return a success, the request will be retried untill success or 
-            untill the retry scheme is exhausted.<br/>
+            untill the retry-scheme is exhausted.<br/>
 			The remote host is indicated by:
 			<ul>
 				<li>the HTTP query parameeter "HostToForwardTo" or </li>

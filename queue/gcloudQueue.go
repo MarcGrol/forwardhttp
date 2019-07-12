@@ -11,23 +11,23 @@ import (
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2beta3"
 )
 
-type GcloudTaskQueue struct {
+type gcloudTaskQueue struct {
 	client *cloudtasks.Client
 }
 
-func NewQueue(c context.Context) (TaskQueue, func(), error) {
+func NewQueue(c context.Context) (TaskQueuer, func(), error) {
 	cloudTaskClient, err := cloudtasks.NewClient(c)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error creating cloudtask-client: %s", err)
 	}
-	return &GcloudTaskQueue{
+	return &gcloudTaskQueue{
 			client: cloudTaskClient,
 		}, func() {
 			cloudTaskClient.Close()
 		}, nil
 }
 
-func (q *GcloudTaskQueue) Enqueue(c context.Context, task Task) error {
+func (q *gcloudTaskQueue) Enqueue(c context.Context, task Task) error {
 	taskUID := composeTaskName(task.UID)
 	log.Printf("task-uid: %s", taskUID)
 	_, err := q.client.CreateTask(c, &taskspb.CreateTaskRequest{
@@ -73,7 +73,7 @@ func composeFullyQualifiedWebhookURL(webhookUID string) string {
 	return fmt.Sprintf("https://%s.appspot.com/%s", projectId, webhookUID)
 }
 
-func (q *GcloudTaskQueue) IsLastAttempt(c context.Context, taskUID string) (int32, int32, bool) {
+func (q *gcloudTaskQueue) IsLastAttempt(c context.Context, taskUID string) (int32, int32, bool) {
 	var numRetries int32 = 0
 	var maxRetries int32 = -1
 	// find characteristics of the queue
