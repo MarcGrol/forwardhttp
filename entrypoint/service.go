@@ -85,7 +85,7 @@ func reportError(w http.ResponseWriter, httpResponseStatus int, err error) {
 }
 
 func parseRequest(r *http.Request) (bool, httpclient.Request, error) {
-	tryFirst, _ := extractBool(r, "TryFirst")
+	tryFirst := extractBool(r, "TryFirst")
 
 	req := httpclient.Request{}
 
@@ -155,7 +155,7 @@ func extractMandatoryStringParameter(r *http.Request, fieldName string) (string,
 	return value, nil
 }
 
-func extractBool(r *http.Request, fieldName string) (bool, error) {
+func extractBool(r *http.Request, fieldName string) bool {
 	valueAsString := r.URL.Query().Get(fieldName)
 	if valueAsString == "" {
 		valueAsString = r.FormValue(fieldName)
@@ -164,15 +164,15 @@ func extractBool(r *http.Request, fieldName string) (bool, error) {
 		valueAsString = r.Header.Get(fmt.Sprintf("X-%s", fieldName))
 	}
 	if valueAsString == "" {
-		return false, nil
+		return false
 	}
 
 	value, err := strconv.ParseBool(valueAsString)
 	if err != nil {
-		return false, fmt.Errorf("Invalid bool parameter '%s': %s", fieldName, valueAsString)
+		return false
 	}
 
-	return value, nil
+	return value
 }
 
 func (s *webService) explain(w http.ResponseWriter, r *http.Request) {

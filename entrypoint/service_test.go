@@ -33,6 +33,13 @@ func TestAll(t *testing.T) {
 			expectedResponsePayload: "Error parsing request: Missing parameter: Missing mandatory parameter 'HostToForwardTo'",
 		},
 		{
+			name:                    "Invalid optional param",
+			forwarder:               nil,
+			request:                 httpRequest(t, "POST", "/doit?TryFirst=true", "request body"),
+			expectedResponseStatus:  400,
+			expectedResponsePayload: "Error parsing request: Missing parameter: Missing mandatory parameter 'HostToForwardTo'",
+		},
+		{
 			name:                    "Synchronous: success",
 			forwarder:               syncForwarder(ctrl, 200, "response body", nil),
 			request:                 httpRequest(t, "POST", "/doit?HostToForwardTo=home.nl&TryFirst=true", "request body"),
