@@ -1,6 +1,6 @@
 language: go
 go:
- - 1.11
+ - 1.11.x
 
 install:
  - go get -t -u ./...
@@ -10,7 +10,7 @@ install:
 
 script:
  - PATH="$HOME/gopath/bin:$PATH"
- - go test ./...
+ - go test ${gobuild_args} ./...
  - scripts/coverage.sh
  - $HOME/gopath/bin/goveralls -coverprofile=.cover/cover.out -service=travis-ci
 
