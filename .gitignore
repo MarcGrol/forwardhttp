@@ -1,12 +1,12 @@
 .cover/
 .DS_Store
 .idea
-.iml
+*.iml
 vendor/*/
 *.log
 emails/preview/*
 *-clientsecret.json
 .secrets
 .examples
-.gcloudignore
+*.gcloudignore
 .coveralls.yml
