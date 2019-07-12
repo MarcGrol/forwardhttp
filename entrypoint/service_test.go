@@ -26,6 +26,11 @@ func TestAll(t *testing.T) {
 		expectedResponsePayload string
 	}{
 		{
+			name:                   "Get website with instructions",
+			forwarder:              nil,
+			request:                httpRequest(t, "GET", "/", "request body"),
+			expectedResponseStatus: 200,
+		}, {
 			name:                    "Missing mandatory param",
 			forwarder:               nil,
 			request:                 httpRequest(t, "POST", "/doit?TryFirst=true", "request body"),
@@ -94,7 +99,9 @@ func TestAll(t *testing.T) {
 
 			// then
 			assert.Equal(t, tc.expectedResponseStatus, httpResp.Code)
-			assert.Equal(t, tc.expectedResponsePayload, httpResp.Body.String())
+			if tc.expectedResponsePayload != "" {
+				assert.Equal(t, tc.expectedResponsePayload, httpResp.Body.String())
+			}
 		})
 	}
 }
