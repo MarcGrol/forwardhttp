@@ -95,30 +95,35 @@ func (s *forwarderService) dequeue() http.HandlerFunc {
 		}
 
 		// collect statistics
-		numAttempts, maxAttempts, isLastAttempt := s.queue.IsLastAttempt(c, httpReq.UID)
+		numAttempts, maxAttempts := s.queue.IsLastAttempt(c, httpReq.UID)
+		stats := warehouse.Stats{RetryCount: numAttempts, MaxRetryCount: maxAttempts}
 
-		// do forward over http
-		httpResp, err := s.httpClient.Send(c, httpReq)
-		defer s.warehouse.Put(c, httpReq, httpResp, err, warehouse.Stats{RetryCount: numAttempts, MaxRetryCount: maxAttempts})
-		if err != nil {
-			log.Printf("Error forwarding %s: %s", httpReq.String(), err)
-			if isLastAttempt {
-				s.lastDelivery.OnLastDelivery(c, httpReq, nil, err)
-			}
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		if httpResp.IsError() {
-			log.Printf("Error forwarding %s: resp-status: %d", httpReq.String(), httpResp.Status)
-			if isLastAttempt {
-				s.lastDelivery.OnLastDelivery(c, httpReq, httpResp, nil)
-			}
-			w.WriteHeader(httpResp.Status)
-			return
-		}
-
-		log.Printf("Successfully forwarded %s:%s", httpReq.String(), httpResp.String())
-		s.lastDelivery.OnLastDelivery(c, httpReq, httpResp, nil)
+		// forward
+		w.WriteHeader(s.forward(c, httpReq, stats))
 	}
+}
+func (s *forwarderService) forward(c context.Context, httpReq httpclient.Request, stats warehouse.Stats) int {
+	// do forward over http
+	httpResp, err := s.httpClient.Send(c, httpReq)
+	defer s.warehouse.Put(c, httpReq, httpResp, err, stats)
+	if err != nil {
+		log.Printf("Error forwarding %s: %s", httpReq.String(), err)
+		if stats.IsLastAttempt() {
+			s.lastDelivery.OnLastDelivery(c, httpReq, nil, err)
+		}
+		return http.StatusInternalServerError
+	}
+
+	if httpResp.IsError() {
+		log.Printf("Error forwarding %s: resp-status: %d", httpReq.String(), httpResp.Status)
+		if stats.IsLastAttempt() {
+			s.lastDelivery.OnLastDelivery(c, httpReq, httpResp, nil)
+		}
+		return httpResp.Status
+	}
+
+	log.Printf("Successfully forwarded %s:%s", httpReq.String(), httpResp.String())
+	s.lastDelivery.OnLastDelivery(c, httpReq, httpResp, nil)
+
+	return http.StatusOK
 }

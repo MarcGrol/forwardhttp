@@ -1,3 +1,6 @@
+[![BCH compliance](https://bettercodehub.com/edge/badge/MarcGrol/golangAnnotations?branch=master)](https://bettercodehub.com/)
+
+
 # Retying http forwarder
 
 This HTTP-service will act as a persistent retrying queue.

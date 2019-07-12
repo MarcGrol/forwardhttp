@@ -11,6 +11,10 @@ type Stats struct {
 	MaxRetryCount int32
 }
 
+func (s Stats) IsLastAttempt() bool {
+	return s.RetryCount == s.MaxRetryCount
+}
+
 //go:generate mockgen -source=api.go -destination=gen_WarehouseClientMock.go -package=warehouse github.com/MarcGrol/forwardhttp/warehouse Warehouser
 
 type Warehouser interface {
