@@ -53,12 +53,12 @@ func (s *forwarderService) Forward(c context.Context, httpReq httpclient.Request
 		Error:        err,
 		Stats:        warehouse.Stats{RetryCount: 0, MaxRetryCount: 0},
 	})
-	if err == nil {
+	if err != nil {
+		log.Printf("Forwarding error %s: %s", httpReq, err)
 		return nil, err
 	}
-	if httpResp.IsPermanentError() {
-		return nil, fmt.Errorf("Permanant http-error %d returned", httpResp.Status)
-	}
+	log.Printf("Forwarded successfully: %s", httpResp)
+
 	return httpResp, nil
 }
 

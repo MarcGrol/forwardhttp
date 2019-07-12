@@ -11,40 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type Request struct {
-	UID     string
-	Method  string
-	URL     string
-	Headers http.Header `datastore:",noindex"`
-	Body    []byte      `datastore:",noindex"`
-}
-
-func (r Request) String() string {
-	return fmt.Sprintf("HTTP request %s %s", r.Method, r.URL)
-}
-
-type Response struct {
-	Status  int
-	Headers http.Header `datastore:",noindex"`
-	Body    []byte      `datastore:",noindex"`
-}
-
-func (r Response) String() string {
-	return fmt.Sprintf("HTTP response %d", r.Status)
-}
-
-func (r Response) IsError() bool {
-	return r.Status >= http.StatusBadRequest
-}
-
-func (r Response) IsPermanentError() bool {
-	return r.Status >= http.StatusOK && r.Status < http.StatusInternalServerError
-}
-
-func (r Response) isTemporaryError() bool {
-	return !r.IsPermanentError()
-}
-
 type client struct {
 }
 
