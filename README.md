@@ -27,12 +27,22 @@ Use the gcloud command-line tool
 
     gcloud auth login # expect browser to pop-up for interactive login
     
-    gcloud config set projectforwardhttp # or your own <project>
+    gcloud config set project forwardhttp # or your own <gcloud-project>
     
     gcloud app deploy ./main/app.yaml  --quiet --version 1
     
-Service is now available at https://forwardhttp.appspot.com
+Service is now available at https://forwardhttp.appspot.com (or your own https://<gcloud-project>.appspot.com).
     
+        
+## Create queue
+
+Use gcloud command-line
+
+    gcloud tasks queues create default \
+        --max-attempts=10 \
+        --max-concurrent-dispatches=5 # prevent overloading remote system
+
+
 ## Test
 
 https://forwardhttp.appspot.com
@@ -43,28 +53,4 @@ Example to test the interaction:
     curl -vvv \
         -X POST \
         --data "$(date): This is expected to be sent back as part of response body." \
-        "https://<your-project-name>.appspot.com/post?HostToForwardTo=https://postman-echo.com"   
-
-    curl -vvv \
-        -X POST \
-        --data "$(date): This is expected to be sent back as part of response body." \
         "https://forwardhttp.appspot.com/post?HostToForwardTo=https://postman-echo.com&TryFirst=true"  
-        
-## Create queue
-
-Use gcloud command-line
-
-    gcloud tasks queues create default \
-        --max-attempts=3 \
-        --max-concurrent-dispatches=3
-
-    gcloud tasks queues update default
-              --clear-max-attempts 
-              --clear-max-retry-duration
-              --clear-max-doublings 
-              --clear-min-backoff
-              --clear-max-backoff
-              --clear-max-dispatches-per-second
-              --clear-max-concurrent-dispatches
-              --clear-routing-override         
-
