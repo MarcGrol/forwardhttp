@@ -1,7 +1,11 @@
 package entrypoint
 
-import "github.com/MarcGrol/forwardhttp/forwarder"
+import (
+	"github.com/MarcGrol/forwardhttp/forwarder"
+	"github.com/MarcGrol/forwardhttp/uniqueid"
+)
 
 type webService struct {
-	forwarder forwarder.Forwarder
+	uidGenerator uniqueid.Generator
+	forwarder    forwarder.Forwarder
 }

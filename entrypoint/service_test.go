@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/MarcGrol/forwardhttp/uniqueid"
+
 	"github.com/MarcGrol/forwardhttp/forwarder"
 	"github.com/MarcGrol/forwardhttp/httpclient"
 	"github.com/golang/mock/gomock"
@@ -20,6 +22,7 @@ func TestAll(t *testing.T) {
 
 	testCases := []struct {
 		name                    string
+		uidGenerator            uniqueid.Generator
 		forwarder               forwarder.Forwarder
 		request                 *http.Request
 		expectedResponseStatus  int
@@ -27,11 +30,13 @@ func TestAll(t *testing.T) {
 	}{
 		{
 			name:                   "Get website with instructions",
+			uidGenerator:           nil,
 			forwarder:              nil,
 			request:                httpRequest(t, "GET", "/", "request body"),
 			expectedResponseStatus: 200,
 		}, {
 			name:                    "Missing mandatory param",
+			uidGenerator:            nil,
 			forwarder:               nil,
 			request:                 httpRequest(t, "POST", "/doit?TryFirst=true", "request body"),
 			expectedResponseStatus:  400,
@@ -39,6 +44,7 @@ func TestAll(t *testing.T) {
 		},
 		{
 			name:                    "Invalid optional param",
+			uidGenerator:            nil,
 			forwarder:               nil,
 			request:                 httpRequest(t, "POST", "/doit?TryFirst=true", "request body"),
 			expectedResponseStatus:  400,
@@ -46,27 +52,31 @@ func TestAll(t *testing.T) {
 		},
 		{
 			name:                    "Synchronous: success",
-			forwarder:               syncForwarder(ctrl, 200, "response body", nil),
-			request:                 httpRequest(t, "POST", "/doit?HostToForwardTo=home.nl&TryFirst=true", "request body"),
+			uidGenerator:            generateUID(ctrl, "abc"),
+			forwarder:               syncForwarder(ctrl, "abc", "POST", "/doit?a=b", 200, "response body", nil),
+			request:                 httpRequest(t, "POST", "/doit?a=b&HostToForwardTo=home.nl&TryFirst=true", "request body"),
 			expectedResponseStatus:  200,
-			expectedResponsePayload: "response body",
+			expectedResponsePayload: "response body for request abc POST /doit?a=b",
 		},
 		{
 			name:                    "Synchronous: Networking error",
-			forwarder:               syncForwarder(ctrl, 0, "", fmt.Errorf("Networking error")),
+			uidGenerator:            generateUID(ctrl, "abc"),
+			forwarder:               syncForwarder(ctrl, "abc", "POST", "/doit", 0, "", fmt.Errorf("Networking error")),
 			request:                 httpRequest(t, "POST", "/doit?HostToForwardTo=home.nl&TryFirst=true", "request body"),
 			expectedResponseStatus:  500,
 			expectedResponsePayload: "Networking error",
 		},
 		{
 			name:                    "Synchronous: Permanent http error",
-			forwarder:               syncForwarder(ctrl, 400, "error reponse body", nil),
+			uidGenerator:            generateUID(ctrl, "abc"),
+			forwarder:               syncForwarder(ctrl, "abc", "POST", "/doit", 400, "error reponse body", nil),
 			request:                 httpRequest(t, "POST", "/doit?HostToForwardTo=home.nl&TryFirst=true", "request body"),
 			expectedResponseStatus:  400,
-			expectedResponsePayload: "error reponse body",
+			expectedResponsePayload: "error reponse body for request abc POST /doit",
 		},
 		{
 			name:                    "Synchronous: Temporary http error",
+			uidGenerator:            generateUID(ctrl, "abc"),
 			forwarder:               completeForwarder(ctrl, 500, "error reponse body", nil),
 			request:                 httpRequest(t, "POST", "/doit?HostToForwardTo=home.nl&TryFirst=true", "request body"),
 			expectedResponseStatus:  202,
@@ -74,6 +84,7 @@ func TestAll(t *testing.T) {
 		},
 		{
 			name:                    "Asynchronous: success",
+			uidGenerator:            generateUID(ctrl, "abc"),
 			forwarder:               asyncForwarder(ctrl, nil),
 			request:                 httpRequest(t, "POST", "/doit?HostToForwardTo=home.nl", "request body"),
 			expectedResponseStatus:  202,
@@ -81,6 +92,7 @@ func TestAll(t *testing.T) {
 		},
 		{
 			name:                    "Asynchronous: error",
+			uidGenerator:            generateUID(ctrl, "abc"),
 			forwarder:               asyncForwarder(ctrl, fmt.Errorf("queueing error")),
 			request:                 httpRequest(t, "POST", "/doit?HostToForwardTo=home.nl", "request body"),
 			expectedResponseStatus:  500,
@@ -91,7 +103,7 @@ func TestAll(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// setup
-			webservice := NewWebService(tc.forwarder)
+			webservice := NewWebService(tc.uidGenerator, tc.forwarder)
 
 			// when
 			httpResp := httptest.NewRecorder()
@@ -118,7 +130,17 @@ func httpRequest(t *testing.T, method, url, body string) *http.Request {
 	return httpReq
 }
 
-func syncForwarder(ctrlr *gomock.Controller, status int, respPayload string, err error) forwarder.Forwarder {
+func generateUID(ctrlr *gomock.Controller, uid string) uniqueid.Generator {
+	generatorMock := uniqueid.NewMockGenerator(ctrlr)
+	generatorMock.
+		EXPECT().
+		Generate().
+		Return(uid)
+
+	return generatorMock
+}
+
+func syncForwarder(ctrlr *gomock.Controller, expectedUID, expectedMethod, expectedURL string, status int, respPayload string, err error) forwarder.Forwarder {
 	forwarderMock := forwarder.NewMockForwarder(ctrlr)
 
 	var resp *httpclient.Response = nil
@@ -126,7 +148,7 @@ func syncForwarder(ctrlr *gomock.Controller, status int, respPayload string, err
 		resp = &httpclient.Response{
 			Status:  status,
 			Headers: http.Header{},
-			Body:    []byte(respPayload),
+			Body:    []byte(fmt.Sprintf("%s for request %s %s %s", respPayload, expectedUID, expectedMethod, expectedURL)),
 		}
 	}
 	forwarderMock.

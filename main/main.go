@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/MarcGrol/forwardhttp/uniqueid"
+
 	"github.com/MarcGrol/forwardhttp/lastdelivery"
 
 	"github.com/MarcGrol/forwardhttp/entrypoint"
@@ -40,7 +42,8 @@ func main() {
 	lastdeliverer := lastdelivery.NewLastDelivery()
 	forwarder := forwarder.NewService(queue, httpClient, warehouse, lastdeliverer)
 	forwarder.RegisterEndPoint(router)
-	entrypoint := entrypoint.NewWebService(forwarder)
+	uidGenerator := uniqueid.NewGenerator()
+	entrypoint := entrypoint.NewWebService(uidGenerator, forwarder)
 	entrypoint.RegisterEndpoint(router)
 
 	http.Handle("/", router)

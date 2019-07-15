@@ -9,14 +9,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MarcGrol/forwardhttp/uniqueid"
+
 	"github.com/MarcGrol/forwardhttp/forwarder"
 	"github.com/MarcGrol/forwardhttp/httpclient"
 	"github.com/gorilla/mux"
 )
 
-func NewWebService(forwarder forwarder.Forwarder) *webService {
+func NewWebService(uidGenerator uniqueid.Generator, forwarder forwarder.Forwarder) *webService {
 	s := &webService{
-		forwarder: forwarder,
+		uidGenerator: uidGenerator,
+		forwarder:    forwarder,
 	}
 	return s
 }
@@ -38,7 +41,7 @@ func (s *webService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *webService) forward(w http.ResponseWriter, r *http.Request) {
 	c := r.Context()
 
-	tryFirst, httpRequest, err := parseRequest(r)
+	tryFirst, httpRequest, err := s.parseRequest(r)
 	if err != nil {
 		reportError(w, http.StatusBadRequest, fmt.Errorf("Error parsing request: %s", err))
 		return
@@ -84,14 +87,13 @@ func reportError(w http.ResponseWriter, httpResponseStatus int, err error) {
 	fmt.Fprintf(w, err.Error())
 }
 
-func parseRequest(r *http.Request) (bool, httpclient.Request, error) {
+func (s *webService) parseRequest(r *http.Request) (bool, httpclient.Request, error) {
 	tryFirst := extractBool(r, "TryFirst")
 
 	req := httpclient.Request{
 		Method:  r.Method,
 		Headers: r.Header,
 	}
-	req.SetUID()
 
 	hostToForwardTo, err := extractMandatoryStringParameter(r, "HostToForwardTo")
 	if err != nil {
@@ -107,6 +109,8 @@ func parseRequest(r *http.Request) (bool, httpclient.Request, error) {
 	if err != nil {
 		return tryFirst, req, fmt.Errorf("Error reading request body: %s", err)
 	}
+
+	req.UID = s.uidGenerator.Generate()
 
 	return tryFirst, req, nil
 }
