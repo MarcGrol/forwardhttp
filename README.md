@@ -8,11 +8,11 @@ Upon receipt of an HTTP POST-request or PUT-request, the service will asynchrono
 When the remote host does not return a success, the request will be retried untill success or 
 untill the retry scheme is exhausted.
 The remote host is indicated by:
-- the HTTP query parameeter "HostToForwardTo" or
+- the HTTP query parameter "HostToForwardTo" or
 - the HTTP-request-header "X-HostToForwardTo"
 
 If required, an synchronous first delivery attempt can be made. This functionality is triggered by:
-- the HTTP query parameeter "TryFirst" or
+- the HTTP query parameter "TryFirst" or
 - the HTTP-request-header "X-TryFirst"
 
 ## Install
