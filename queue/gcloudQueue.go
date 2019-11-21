@@ -33,7 +33,7 @@ func (q *gcloudTaskQueue) Enqueue(c context.Context, task Task) error {
 	_, err := q.client.CreateTask(c, &taskspb.CreateTaskRequest{
 		Parent: composeQueueName(),
 		Task: &taskspb.Task{
-			Name: taskUID,
+			Name: taskUID, // de-duplicate
 			PayloadType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
 					HttpMethod: taskspb.HttpMethod_POST,

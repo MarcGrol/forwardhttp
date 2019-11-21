@@ -9,7 +9,7 @@ import (
 //go:generate mockgen -source=api.go -destination=gen_HttpClientMock.go -package=httpclient github.com/MarcGrol/forwardhttp/httpclient HTTPSender
 
 type Request struct {
-	UID     string
+	TaskUID string
 	Method  string
 	URL     string
 	Headers http.Header `datastore:"-"`
@@ -17,7 +17,7 @@ type Request struct {
 }
 
 func (r Request) String() string {
-	return fmt.Sprintf("HTTP %s request %s: %s", r.Method, r.URL, r.UID)
+	return fmt.Sprintf("HTTP %s request %s: %s", r.Method, r.URL, r.TaskUID)
 }
 
 type Response struct {

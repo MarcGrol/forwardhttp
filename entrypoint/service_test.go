@@ -84,16 +84,16 @@ func TestAll(t *testing.T) {
 		},
 		{
 			name:                    "Asynchronous: success",
-			uidGenerator:            generateUID(ctrl, "abc"),
-			forwarder:               asyncForwarder(ctrl, nil),
-			request:                 httpRequest(t, "POST", "/doit?HostToForwardTo=home.nl", "request body"),
+			uidGenerator:            nil,
+			forwarder:               asyncForwarder(ctrl, "xx-yy-zz", nil),
+			request:                 httpRequest(t, "POST", "/doit?HostToForwardTo=home.nl&TaskUid=xx-yy-zz", "request body"),
 			expectedResponseStatus:  202,
 			expectedResponsePayload: "",
 		},
 		{
 			name:                    "Asynchronous: error",
 			uidGenerator:            generateUID(ctrl, "abc"),
-			forwarder:               asyncForwarder(ctrl, fmt.Errorf("queueing error")),
+			forwarder:               asyncForwarder(ctrl, "", fmt.Errorf("queueing error")),
 			request:                 httpRequest(t, "POST", "/doit?HostToForwardTo=home.nl", "request body"),
 			expectedResponseStatus:  500,
 			expectedResponsePayload: "Error enqueuing task: queueing error",
@@ -183,7 +183,7 @@ func completeForwarder(ctrlr *gomock.Controller, status int, respPayload string,
 	return forwarderMock
 }
 
-func asyncForwarder(ctrlr *gomock.Controller, err error) forwarder.Forwarder {
+func asyncForwarder(ctrlr *gomock.Controller, taskUID string, err error) forwarder.Forwarder {
 	forwarderMock := forwarder.NewMockForwarder(ctrlr)
 
 	forwarderMock.

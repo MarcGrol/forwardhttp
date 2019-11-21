@@ -88,16 +88,21 @@ func reportError(w http.ResponseWriter, httpResponseStatus int, err error) {
 }
 
 func (s *webService) parseRequest(r *http.Request) (bool, httpclient.Request, error) {
+	hostToForwardTo, err := extractMandatoryStringParameter(r, "HostToForwardTo")
+	if err != nil {
+		return false, httpclient.Request{}, fmt.Errorf("Missing parameter: %s", err)
+	}
+
+	taskUID := extractStringParameter(r, "TaskUid")
+	if taskUID == "" {
+		taskUID = s.uidGenerator.Generate()
+	}
 	tryFirst := extractBool(r, "TryFirst")
 
 	req := httpclient.Request{
 		Method:  r.Method,
 		Headers: r.Header,
-	}
-
-	hostToForwardTo, err := extractMandatoryStringParameter(r, "HostToForwardTo")
-	if err != nil {
-		return false, req, fmt.Errorf("Missing parameter: %s", err)
+		TaskUID: taskUID,
 	}
 
 	req.URL, err = composeTargetURL(r.RequestURI, hostToForwardTo)
@@ -109,8 +114,6 @@ func (s *webService) parseRequest(r *http.Request) (bool, httpclient.Request, er
 	if err != nil {
 		return tryFirst, req, fmt.Errorf("Error reading request body: %s", err)
 	}
-
-	req.UID = s.uidGenerator.Generate()
 
 	return tryFirst, req, nil
 }
@@ -125,6 +128,7 @@ func composeTargetURL(requestURI, hostToForwardTo string) (string, error) {
 	queryParams := url.Query()
 	queryParams.Del("HostToForwardTo") // not interesting to remote host
 	queryParams.Del("TryFirst")        // not interesting to remote host
+	queryParams.Del("TaskUid")         // not interesting to remote host
 	url.RawQuery = queryParams.Encode()
 	scheme, host := determineSchemeHostname(hostToForwardTo)
 	url.Host = host
@@ -146,6 +150,15 @@ func determineSchemeHostname(hostToForwardTo string) (string, string) {
 }
 
 func extractMandatoryStringParameter(r *http.Request, fieldName string) (string, error) {
+	value := extractStringParameter(r, fieldName)
+	if value == "" {
+		return "", fmt.Errorf("Missing mandatory parameter '%s'", fieldName)
+	}
+
+	return value, nil
+}
+
+func extractStringParameter(r *http.Request, fieldName string) string {
 	value := r.URL.Query().Get(fieldName)
 	if value == "" {
 		value = r.FormValue(fieldName)
@@ -154,11 +167,8 @@ func extractMandatoryStringParameter(r *http.Request, fieldName string) (string,
 	if value == "" {
 		value = r.Header.Get(fmt.Sprintf("X-%s", fieldName))
 	}
-	if value == "" {
-		return "", fmt.Errorf("Missing mandatory parameter '%s'", fieldName)
-	}
 
-	return value, nil
+	return value
 }
 
 func extractBool(r *http.Request, fieldName string) bool {
