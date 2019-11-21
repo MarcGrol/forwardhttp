@@ -31,8 +31,9 @@ type forwardStatsRecord struct {
 
 func (w Warehouse) Put(c context.Context, summary ForwardSummary) error {
 	fs := &forwardStatsRecord{
-		Request:  summary.HttpRequest,
-		Response: summary.HttpResponse,
+		Timestamp: time.Now(),
+		Request:   summary.HttpRequest,
+		Response:  summary.HttpResponse,
 		ErrorMsg: func() string {
 			if summary.Error != nil {
 				return summary.Error.Error()
