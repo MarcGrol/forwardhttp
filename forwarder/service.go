@@ -74,7 +74,7 @@ func (s *forwarderService) enqueue(c context.Context, httpRequest httpclient.Req
 	}
 
 	err = s.queue.Enqueue(c, queue.Task{
-		UID:            httpRequest.UID,
+		UID:            httpRequest.TaskUID,
 		WebhookURLPath: taskEndpointURL,
 		Payload:        taskPayload,
 	})
@@ -100,7 +100,7 @@ func (s *forwarderService) dequeue() http.HandlerFunc {
 		}
 
 		// collect statistics
-		numAttempts, maxAttempts := s.queue.IsLastAttempt(c, httpReq.UID)
+		numAttempts, maxAttempts := s.queue.IsLastAttempt(c, httpReq.TaskUID)
 		stats := warehouse.Stats{RetryCount: numAttempts, MaxRetryCount: maxAttempts}
 
 		// doSend

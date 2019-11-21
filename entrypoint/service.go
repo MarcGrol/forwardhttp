@@ -30,7 +30,7 @@ func (s *webService) RegisterEndpoint(router *mux.Router) *mux.Router {
 }
 
 func (s *webService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" || r.Method == "PUT" {
+	if r.Method == "POST" || r.Method == "PUT" || r.Method == "DELETE" {
 		s.forward(w, r)
 		return
 	}
@@ -88,11 +88,14 @@ func reportError(w http.ResponseWriter, httpResponseStatus int, err error) {
 }
 
 func (s *webService) parseRequest(r *http.Request) (bool, httpclient.Request, error) {
+	taskUid := extractString(r, "TaskUid")
+
 	tryFirst := extractBool(r, "TryFirst")
 
 	req := httpclient.Request{
 		Method:  r.Method,
 		Headers: r.Header,
+		TaskUID: taskUid,
 	}
 
 	hostToForwardTo, err := extractMandatoryStringParameter(r, "HostToForwardTo")
@@ -105,12 +108,12 @@ func (s *webService) parseRequest(r *http.Request) (bool, httpclient.Request, er
 		return tryFirst, req, fmt.Errorf("Error composing target url: %s", err)
 	}
 
-	req.Body, err = ioutil.ReadAll(r.Body)
-	if err != nil {
-		return tryFirst, req, fmt.Errorf("Error reading request body: %s", err)
+	if r.Body != nil {
+		req.Body, err = ioutil.ReadAll(r.Body)
+		if err != nil {
+			return tryFirst, req, fmt.Errorf("Error reading request body: %s", err)
+		}
 	}
-
-	req.UID = s.uidGenerator.Generate()
 
 	return tryFirst, req, nil
 }
@@ -181,6 +184,18 @@ func extractBool(r *http.Request, fieldName string) bool {
 	return value
 }
 
+func extractString(r *http.Request, fieldName string) string {
+	value := r.URL.Query().Get(fieldName)
+	if value == "" {
+		value = r.FormValue(fieldName)
+	}
+	if value == "" {
+		value = r.Header.Get(fmt.Sprintf("X-%s", fieldName))
+	}
+
+	return value
+}
+
 func (s *webService) explain(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, serviceDescription)
@@ -204,7 +219,7 @@ const serviceDescription = `<html>
             untill the retry-scheme is exhausted.<br/>
 			The remote host is indicated by:
 			<ul>
-				<li>the HTTP query parameeter "HostToForwardTo" or </li>
+				<li>the HTTP query parameter "HostToForwardTo" or </li>
 				<li>the HTTP-request-header "X-HostToForwardTo"</li>
 			</ul>
 		</p>

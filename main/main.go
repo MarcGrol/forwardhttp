@@ -11,11 +11,11 @@ import (
 
 	"github.com/MarcGrol/forwardhttp/lastdelivery"
 
+	"github.com/MarcGrol/forwardhttp/datastore"
 	"github.com/MarcGrol/forwardhttp/entrypoint"
 	"github.com/MarcGrol/forwardhttp/forwarder"
 	"github.com/MarcGrol/forwardhttp/httpclient"
 	"github.com/MarcGrol/forwardhttp/queue"
-	store2 "github.com/MarcGrol/forwardhttp/store"
 	"github.com/MarcGrol/forwardhttp/warehouse"
 	"github.com/gorilla/mux"
 )
@@ -31,7 +31,7 @@ func main() {
 	}
 	defer qcleanup()
 
-	store, scleanup, err := store2.NewStore(c)
+	store, scleanup, err := datastore.NewStore(c)
 	if err != nil {
 		log.Fatalf("Error creating queue: %s", err)
 	}

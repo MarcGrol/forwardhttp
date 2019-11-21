@@ -1,0 +1,14 @@
+{
+  "installed": {
+    "client_id": "610111077958-f6ga3i4hoi5n205emslfeu7gcrguhu0r.apps.googleusercontent.com",
+    "project_id": "forwardhttp",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_secret": "ipCzkYD_QknnuE6aWaOrNf3Y",
+    "redirect_uris": [
+      "urn:ietf:wg:oauth:2.0:oob",
+      "http://localhost"
+    ]
+  }
+}
